@@ -133,7 +133,7 @@ contains
         type(domain_t),  intent(inout) :: domain
 
         ! initialize microphysics code (e.g. compute look up tables in Thompson et al)
-        call mp_init(options) !this could easily be moved to init_model...
+        call mp_init(domain,options) !this could easily be moved to init_model...
 
         call init_convection(domain,options)
 

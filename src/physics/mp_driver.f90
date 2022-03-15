@@ -37,6 +37,7 @@ module microphysics
     use time_object,                only: Time_type
     use options_interface,          only: options_t
     use domain_interface,           only: domain_t
+    use output_interface,           only: output_t
 
     implicit none
 
@@ -57,6 +58,10 @@ module microphysics
     integer, dimension(npoints) :: x_list = [ -1,0,1, -1,1, -1,0,1]
     integer, dimension(npoints) :: y_list = [ 1,1,1, 0,0, -1,-1,-1]
 
+    ! for producing output to train a machine learning model
+    type(output_t) :: training_input, training_output 
+    integer :: training_step = 1
+
     public :: mp, mp_var_request
 contains
 
@@ -70,10 +75,12 @@ contains
     !! @param   options     ICAR model options to specify required initializations
     !!
     !!----------------------------------------------------------
-    subroutine mp_init(options)
+    subroutine mp_init(domain, options)
         implicit none
         type(options_t), intent(inout) :: options
-
+        type(domain_t), intent(in) :: domain
+        integer, allocatable :: variable_list(:)
+        
         if (this_image()==1) write(*,*) ""
         if (this_image()==1) write(*,*) "Initializing Microphysics"
         if (options%physics%microphysics    == kMP_THOMPSON) then
@@ -97,6 +104,19 @@ contains
             if (this_image()==1) write(*,*) "    WSM6 Microphysics"
             call wsm6init(rhoair0,rhowater,rhosnow,cliq,cpv)
         endif
+        if (options%output_options%output_training) then
+            variable_list = [ &
+              kVARS%w_real,  kVARS%pressure,  kVARS%potential_temperature,  kVARS%temperature,  &
+              kVARS%water_vapor,  kVARS%cloud_water,  kVARS%cloud_number_concentration,  kVARS%cloud_ice, &
+              kVARS%ice_number_concentration,  kVARS%rain_in_air,  kVARS%rain_number_concentration,  &
+              kVARS%snow_in_air, kVARS%snow_number_concentration,  kVARS%graupel_in_air, &
+              kVARS%graupel_number_concentration,  kVARS%precipitation, kVARS%snowfall,  kVARS%graupel &
+            ]
+            call training_output%set_domain(domain)
+            call training_output%add_variables(variable_list, domain)
+            call training_input%set_domain(domain)
+            call training_input%add_variables(variable_list, domain)        
+        end if
 
         update_interval = options%mp_options%update_interval
         last_model_time = -999
@@ -640,9 +660,12 @@ contains
                                        ids = ids, ide = ide,                   & ! domain dims
                                        jds = jds, jde = jde,                   &
                                        kds = kds, kde = kde)
+                call training_output%save_file('training_output.nc', training_step, domain%model_time)
+                training_step = training_step + 1
             endif
 
             if (present(halo)) then
+                call training_input%save_file('training_input.nc', training_step, domain%model_time)
                 call process_halo(domain, options, mp_dt, halo, &
                                        its = its, ite = ite,    &
                                        jts = jts, jte = jte,    &
