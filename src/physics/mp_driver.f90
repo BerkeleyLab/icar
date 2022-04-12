@@ -660,12 +660,16 @@ contains
                                        ids = ids, ide = ide,                   & ! domain dims
                                        jds = jds, jde = jde,                   &
                                        kds = kds, kde = kde)
-                call training_output%save_file('training_output.nc', training_step, domain%model_time)
+                if (mod(training_step,10)==0) then
+                  call training_output%save_file('training_output.nc', training_step/10, domain%model_time)
+                end if
                 training_step = training_step + 1
             endif
 
             if (present(halo)) then
-                call training_input%save_file('training_input.nc', training_step, domain%model_time)
+                if (mod(training_step,10)==0) then
+                  call training_input%save_file('training_input.nc', training_step/10, domain%model_time)
+                end if
                 call process_halo(domain, options, mp_dt, halo, &
                                        its = its, ite = ite,    &
                                        jts = jts, jte = jte,    &
