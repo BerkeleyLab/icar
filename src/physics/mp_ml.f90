@@ -1,85 +1,62 @@
-      CHARACTER  datafile*100,argv*100,IN_STR*10
-      REAL inweights(10,64)      ! input layer: 64 neurons, 10 weights/neuron
-      REAL aiweights(50, 64, 64) ! hidden layers: 64 neurons, 64 weights/neuron, 50 layers
-      REAL outweights(64,1)      ! output layer: 1 output (Qr = (kg H20(liq.))/(kg Air)), 64 weights
+module assert_m
+  implicit none
+contains
+  pure subroutine assert(assertion, description)
+    logical, intent(in) :: assertion
+    character(len=*), intent(in) :: description
+    if (.not. assertion) error stop "Th assertion '" // description //"' is false."
+  end subroutine
+end module assert_m
 
-        do i = 1, iargc()
-          if (i==1) call getarg(i, argv)
-        end do
-        READ(argv, *) datafile
-        print*, "infile = ",datafile
+module mp_ml
+  use assert_m, only : assert
+  !use nf, only : network
+  implicit none
 
-        call readData(datafile, inweights, aiweights, outweights, 10,50,64)
-        print *, "JUST A TEST"
-        print *, "FIRST INPUT BLOCK"
-        do i = 1, 10
-          print *, inweights(i,:)
-          print *,""
-        end do
-      end
+  private 
+  public :: ml_init
 
-      SUBROUTINE readData(filename, inw, aiw, outw, in_num, block_num, ai_num)
-      INTEGER in_num, block_num, ai_num
-      REAL inw(in_num,ai_num), aiw(block_num, ai_num, ai_num), outw(ai_num,1)      
-      CHARACTER  filename*100
-      CHARACTER  LINE*1200
-      CHARACTER  tLINE*1200
-      CHARACTER  ch, lastEntry*100
-      INTEGER    b, l, c
+  !type(network) :: qr_net
 
-      open (unit=1, file=filename, form='formatted')      
-      !parse the encoding block
-      do l = 1,in_num
-        read(1, "(A)", iostat=io) LINE
-        tLINE= LINE(3:)
-        READ(tLINE, *) inw(l,1) 
-        tLINE= tLINE(16:)
-        do c = 2,ai_num-1
-           READ(tLINE, *) inw(l,c) 
-           tLINE= tLINE(17:)
-        end do
-        READ(tLINE, *) lastEntry
-        lastEntry= lastEntry(1:15)
-        if (lastEntry(15:15) == ']') lastEntry=lastEntry(1:14)        
-        READ(lastEntry, *) inw(l,ai_num)
-      end do        
+contains
 
-      !skip 3 lines
-      read(1, "(A)", iostat=io) LINE
-      read(1, "(A)", iostat=io) LINE
-      read(1, "(A)", iostat=io) LINE
+  subroutine ml_init(file_name)
+    character(len=*), intent(in) :: file_name
+    real, allocatable :: inweights(:,:)   ! input layer: 64 nodes, 10 weights/node
+    real, allocatable :: aiweights(:,:,:) ! hidden layers: 64 nodes, 64 weights/node, 50 layers
+    real, allocatable :: outweights(:,:)  ! output layer: 1 output (Qr = (kg H20(liq.))/(kg Air)), 64 weights
 
-      !parse the compute block
-      do b = 1,block_num
-        do l = 1,ai_num
-           read(1, "(A)", iostat=io) LINE
-           tLINE= LINE(3:)
-           READ(tLINE, *) aiw(b,l,1)
-           tLINE= tLINE(16:)
-           do c = 2,ai_num-1
-               READ(tLINE, *) aiw(b,l,c)
-               tLINE= tLINE(17:)
-           end do
-           READ(tLINE, *) lastEntry
-           lastEntry= lastEntry(1:15)
-           if (lastEntry(15:15) == ']') lastEntry=lastEntry(1:14)
-           READ(lastEntry, *) aiw(b,l,ai_num)
-        end do
-        !skip 3 lines
-        read(1, "(A)", iostat=io) LINE
-        read(1, "(A)", iostat=io) LINE
-        read(1, "(A)", iostat=io) LINE
+    character(len=*), parameter :: csv = "(*(G0,:,','))" !! comma-separated values format
+    integer num_inputs, num_nodes, num_layers, num_outputs
+    integer i, j, file_unit, stat
+
+    open(newunit=file_unit, file=file_name, form='formatted', status='old', iostat=stat, action='read')      
+    call assert(stat==0,"stat==0 in open")
+
+    read(file_unit,*,iostat=stat) num_inputs, num_nodes, num_layers, num_outputs
+    call assert(stat==0,"stat==0 in read(...) num_inputs,...")
+
+    allocate(inweights(num_inputs, num_nodes), aiweights(num_nodes, num_nodes, num_layers), outweights(num_outputs, num_nodes))
+
+    do i = 1,size(inweights,1)
+      read(file_unit, *, iostat=stat) inweights(i,:)
+      call assert(stat==0,"stat==0 in read(...) inweights")
+    end do
+
+    do i = 1,size(aiweights,1)
+      do j = 1,size(aiweights,3)
+        read(file_unit, *, iostat=stat) aiweights(i,:,j)
+        call assert(stat==0,"stat==0 in read(...) aiweights")
       end do
+    end do
 
-      !parse the output block
-      do l = 1,ai_num
-         read(1, "(A)", iostat=io) LINE
-         tLINE= LINE(3:)
-         if (tLINE(15:15) == ']') tLINE=tLINE(1:14)
-         READ(tLINE, *) outw(l,1)
-      end do
+    do i = 1, size(outweights,2)
+      read(file_unit, *, iostat=stat) outweights(:,i)
+      call assert(stat==0,"stat==0 in read(...) outweights")
+    end do
 
-      CLOSE (1, STATUS='KEEP')
-      return              
+    close (file_unit)
 
-      end
+   end subroutine
+
+end module
