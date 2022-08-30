@@ -1,13 +1,3 @@
-module assert_m
-  implicit none
-contains
-  pure subroutine assert(assertion, description)
-    logical, intent(in) :: assertion
-    character(len=*), intent(in) :: description
-    if (.not. assertion) error stop "Th assertion '" // description //"' is false."
-  end subroutine
-end module assert_m
-
 module mp_ml
   use assert_m, only : assert
   !use nf, only : network
@@ -20,13 +10,12 @@ module mp_ml
 
 contains
 
-  subroutine ml_init(file_name)
+  subroutine ml_init(file_name, inweights, aiweights, outweights)
     character(len=*), intent(in) :: file_name
-    real, allocatable :: inweights(:,:)   ! input layer: 64 nodes, 10 weights/node
-    real, allocatable :: aiweights(:,:,:) ! hidden layers: 64 nodes, 64 weights/node, 50 layers
-    real, allocatable :: outweights(:,:)  ! output layer: 1 output (Qr = (kg H20(liq.))/(kg Air)), 64 weights
+    real, allocatable, intent(out) :: inweights(:,:)   ! input layer, e.g., 10 weights/node x 64 nodes
+    real, allocatable, intent(out) :: aiweights(:,:,:) ! hidden layers, e.g., 64 nodes x 64 weights/node x 50 layers
+    real, allocatable, intent(out) :: outweights(:,:)  ! output layer: 1 output x 64 weights (Qr = (kg H20(liq.))/(kg Air))
 
-    character(len=*), parameter :: csv = "(*(G0,:,','))" !! comma-separated values format
     integer num_inputs, num_nodes, num_layers, num_outputs
     integer i, j, file_unit, stat
 
@@ -57,6 +46,6 @@ contains
 
     close (file_unit)
 
-   end subroutine
+  end subroutine
 
 end module
