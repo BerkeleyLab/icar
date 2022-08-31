@@ -17,6 +17,7 @@ module time_step
     use land_surface,               only : lsm
     use planetary_boundary_layer,   only : pbl
     use radiation,                  only : rad
+    use wind,                       only : balance_uvw
 
     use domain_interface,           only : domain_t
     use options_interface,          only : options_t
@@ -63,6 +64,7 @@ contains
                   psfc                  => domain%surface_pressure%data_2d,     &
                   density               => domain%density%data_3d,              &
                   temperature           => domain%temperature%data_3d,          &
+                  temperature_i         => domain%temperature_interface%data_3d,&
                   u                     => domain%u%data_3d,                    &
                   v                     => domain%v%data_3d,                    &
                   w                     => domain%w%data_3d,                    &
@@ -70,6 +72,7 @@ contains
                   u_mass                => domain%u_mass%data_3d,               &
                   v_mass                => domain%v_mass%data_3d,               &
                   potential_temperature => domain%potential_temperature%data_3d )
+
 
         exner = exner_function(pressure)
 
@@ -84,6 +87,8 @@ contains
         endif
 
         temperature = potential_temperature * exner
+        temperature_i(:,kms+1:kme, :) = (temperature(:,kms:kme-1, :) + temperature(:,kms+1:kme, :)) / 2
+        temperature_i(:, kms, :) = temperature(:, kms, :) + (temperature(:, kms, :) - temperature(:, kms+1, :)) / 2
 
         if (associated(domain%density%data_3d)) then
             density =  pressure / &
@@ -471,6 +476,18 @@ contains
                 if (options%parameters%debug) call domain_check(domain, "img: "//trim(str(this_image()))//" lsm")
 
                 call pbl(domain, options, real(dt%seconds()))!, halo=1)
+                ! balance u/v and re-calculate dt after winds have been modified by pbl:
+                if (options%physics%boundarylayer==kPBL_YSU) then
+                    call balance_uvw(   domain%u%data_3d,   domain%v%data_3d,   domain%w%data_3d,       &
+                                        domain%jacobian_u,  domain%jacobian_v,  domain%jacobian_w,      &
+                                        domain%advection_dz, domain%dx, domain%jacobian, options    )
+
+                    call update_dt(dt, options, domain, end_time)
+
+                    if ((domain%model_time + dt) > end_time) then
+                        dt = end_time - domain%model_time
+                    endif
+                endif
                 if (options%parameters%debug) call domain_check(domain, "img: "//trim(str(this_image()))//" pbl")
 
                 call convect(domain, options, real(dt%seconds()))!, halo=1)
