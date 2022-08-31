@@ -54,7 +54,7 @@ if ! command -v brew > /dev/null ; then
   fi
 fi
 
-GCC_VER="11"
+GCC_VER="12"
 brew install cmake netcdf fftw gcc@$GCC_VER pkg-config coreutils # coreutils supports `realpath` below
 
 PREFIX=`realpath $PREFIX`
@@ -68,12 +68,13 @@ cd build/dependencies/netcdf-fortran/build
   cmake .. \
     -DNETCDF_C_LIBRARY="$NETCDF_PREFIX/lib" \
     -DNETCDF_C_INCLUDE_DIR="$NETCDF_PREFIX/include"
-  make install
+  make -j4 install
 cd -
 
 GIT_VERSION=`git describe --long --dirty --all --always | sed -e's/heads\///'`
 FFTW_INCLUDE_PATH="`brew --prefix fftw`/include"
 NETCDF_LIB_PATH="`brew --prefix netcdf`/lib"
+HDF5_LIB_PATH="`brew --prefix hdf5`/lib"
 FFTW_LIB_PATH="`brew --prefix fftw`/lib"
 export PKG_CONFIG_PATH="$PREFIX"/lib/pkgconfig
 
@@ -81,7 +82,7 @@ FPM_FLAG="-cpp -DUSE_ASSERTIONS=.true."
 FPM_FLAG=" $FPM_FLAG -I$FFTW_INCLUDE_PATH"
 FPM_FLAG=" $FPM_FLAG -fallow-argument-mismatch -ffree-line-length-none"
 FPM_FLAG=" $FPM_FLAG -DVERSION=\\\'$GIT_VERSION\\\'"
-FPM_FLAG=" $FPM_FLAG -L$NETCDF_LIB_PATH -L$FFTW_LIB_PATH"
+FPM_FLAG=" $FPM_FLAG -L$NETCDF_LIB_PATH -L$FFTW_LIB_PATH -L$HDF5_LIB_PATH"
 FPM_FC="caf"
 FPM_CC="$CC"
 
