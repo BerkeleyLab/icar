@@ -1,12 +1,12 @@
 module mp_ml
   use assert_m, only : assert
-  !use nf, only : network
+  use nf, only : network
   implicit none
 
   private 
   public :: ml_init
 
-  !type(network) :: qr_net
+  type(network) :: qr_net
 
 contains
 
