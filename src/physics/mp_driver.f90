@@ -105,6 +105,9 @@ contains
             call wsm6init(rhoair0,rhowater,rhosnow,cliq,cpv)
         endif
         if (options%output_options%output_training) then
+          block 
+            integer full_var_list(kMAX_STORAGE_VARS)
+
             variable_list = [ &
               kVARS%w_real,  kVARS%pressure,  kVARS%potential_temperature,  kVARS%temperature,  &
               kVARS%water_vapor,  kVARS%cloud_water,  kVARS%cloud_number_concentration,  kVARS%cloud_ice, &
@@ -112,10 +115,14 @@ contains
               kVARS%snow_in_air, kVARS%snow_number_concentration,  kVARS%graupel_in_air, &
               kVARS%graupel_number_concentration,  kVARS%precipitation, kVARS%snowfall,  kVARS%graupel &
             ]
+
+            full_var_list = 0
+            full_var_list(variable_list) = 1
             call training_output%set_domain(domain)
-            call training_output%add_variables(variable_list, domain)
+            call training_output%add_variables(full_var_list, domain)
             call training_input%set_domain(domain)
-            call training_input%add_variables(variable_list, domain)        
+            call training_input%add_variables(full_var_list, domain)
+          end block
         end if
 
         update_interval = options%mp_options%update_interval
