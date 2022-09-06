@@ -60,7 +60,9 @@ brew install cmake netcdf fftw gcc@$GCC_VER pkg-config coreutils # coreutils sup
 PREFIX=`realpath $PREFIX`
 
 mkdir -p build/dependencies
-git clone https://github.com/Unidata/netcdf-fortran.git build/dependencies/netcdf-fortran
+if [ ! -d "build/dependencies/netcdf-fortran" ]; then
+  git clone https://github.com/Unidata/netcdf-fortran.git build/dependencies/netcdf-fortran
+fi
 mkdir -p build/dependencies/netcdf-fortran/build
 cd build/dependencies/netcdf-fortran/build
   export FC=gfortran-${GCC_VER} CC=gcc-${GCC_VER} CXX=g++-${GCC_VER}
@@ -86,6 +88,9 @@ FPM_FLAG=" $FPM_FLAG -L$NETCDF_LIB_PATH -L$FFTW_LIB_PATH -L$HDF5_LIB_PATH"
 FPM_FC="caf"
 FPM_CC="$CC"
 
+if [ ! -d "$PKG_CONFIG_PATH" ]; then
+  mkdir -p "$PKG_CONFIG_PATH"
+fi
 cd "$PKG_CONFIG_PATH"
   echo "ICAR_FPM_CXX=\"$CXX\""       >  icar.pc
   echo "ICAR_FPM_CC=\"$FPM_CC\""     >> icar.pc
@@ -107,6 +112,11 @@ cd build
   echo "--flag \"`pkg-config icar --variable=ICAR_FPM_FLAG`\""        >> run-fpm.sh
   chmod u+x run-fpm.sh
 cd -
+
+if command -v fpm > /dev/null 2>&1; then
+  brew tap fortran-lang/fortran
+  brew install fpm
+fi
 
 ./build/run-fpm.sh test
 
