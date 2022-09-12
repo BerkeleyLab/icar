@@ -7,7 +7,7 @@ usage()
   echo "ICAR Installation Script"
   echo ""
   echo "USAGE:"
-  echo "./install.sh [--help | [--prefix=PREFIX]"
+  echo "./install.sh [--help|-h] | [-p|--prefix=PREFIX]"
   echo ""
   echo " --help             Display this help text"
   echo " --prefix=PREFIX    Install binary in 'PREFIX/bin'"
@@ -25,7 +25,7 @@ while [ "$1" != "" ]; do
       usage
       exit
       ;;
-    --prefix)
+    -p | --prefix)
       PREFIX=$VALUE
       ;;
     *)
@@ -59,6 +59,33 @@ brew install cmake netcdf fftw gcc@$GCC_VER pkg-config coreutils # coreutils sup
 
 PREFIX=`realpath $PREFIX`
 
+# Define the sudo command to be used if the installation path requires administrative permissions
+set_SUDO_if_needed_to_write_to_directory()
+{
+  directory_to_create=$1
+  SUDO_IF_NECESSARY=""
+  ehcho "Checking whether the directory ${directory_to_create} exists... "
+  if [ -d "${directory_to_create}" ]; then
+    echo "yes"
+    echo "Checking whether I have write permissions to ${directory_to_create} ... "
+    if [ -w "${directory_to_create}" ]; then
+      echo "yes"
+    else
+      echo "no"
+      SUDO_IF_NECESSARY="sudo"
+    fi
+  else
+    echo "no"
+    echo "Checking whether I can create ${directory_to_create} ... "
+    if mkdir -p "${directory_to_create}" >& /dev/null; then
+      echo "yes."
+    else
+      echo "no."
+      SUDO_IF_NECESSARY="sudo"
+    fi
+  fi
+}
+
 mkdir -p build/dependencies
 git clone https://github.com/Unidata/netcdf-fortran.git build/dependencies/netcdf-fortran
 mkdir -p build/dependencies/netcdf-fortran/build
@@ -68,7 +95,8 @@ cd build/dependencies/netcdf-fortran/build
   cmake .. \
     -DNETCDF_C_LIBRARY="$NETCDF_PREFIX/lib" \
     -DNETCDF_C_INCLUDE_DIR="$NETCDF_PREFIX/include"
-  make -j4 install
+  set_SUDO_if_needed_to_write_to_directory "$NETCDF_PREFIX"
+  $SUDO_IF_NECESSARY make -j4 install
 cd -
 
 GIT_VERSION=`git describe --long --dirty --all --always | sed -e's/heads\///'`
