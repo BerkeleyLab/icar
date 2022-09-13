@@ -80,7 +80,6 @@ FFTW_INCLUDE_PATH="`brew --prefix fftw`/include"
 NETCDF_LIB_PATH="`brew --prefix netcdf`/lib"
 HDF5_LIB_PATH="`brew --prefix hdf5`/lib"
 FFTW_LIB_PATH="`brew --prefix fftw`/lib"
-export PKG_CONFIG_PATH="$PREFIX"/lib/pkgconfig
 
 FPM_FLAG="-cpp -DUSE_ASSERTIONS=.true."
 FPM_FLAG=" $FPM_FLAG -I$FFTW_INCLUDE_PATH"
@@ -90,6 +89,10 @@ FPM_FLAG=" $FPM_FLAG -L$NETCDF_LIB_PATH -L$FFTW_LIB_PATH -L$HDF5_LIB_PATH"
 FPM_FC="caf"
 FPM_CC="$CC"
 
+PKG_CONFIG_PATH="$PREFIX"/lib/pkgconfig
+if [ ! -d $PKG_CONFIG_PATH ]; then
+  mkdir -p $PKG_CONFIG_PATH
+fi
 cd "$PKG_CONFIG_PATH"
   echo "ICAR_FPM_CXX=\"$CXX\""       >  icar.pc
   echo "ICAR_FPM_CC=\"$FPM_CC\""     >> icar.pc
