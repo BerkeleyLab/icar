@@ -1,4 +1,4 @@
-#!/bin/dash
+#!/bin/sh
 
 set -e # exit on error
 
@@ -64,7 +64,7 @@ set_SUDO_if_needed_to_write_to_directory()
 {
   directory_to_create=$1
   SUDO_IF_NECESSARY=""
-  ehcho "Checking whether the directory ${directory_to_create} exists... "
+  echo "Checking whether the directory ${directory_to_create} exists... "
   if [ -d "${directory_to_create}" ]; then
     echo "yes"
     echo "Checking whether I have write permissions to ${directory_to_create} ... "
@@ -87,8 +87,12 @@ set_SUDO_if_needed_to_write_to_directory()
 }
 
 mkdir -p build/dependencies
+if [ -d ./build/dependencies/netcdf-fortran ]; then
+  rm -rf ./build/dependencies/netcdf-fortran
+fi
 git clone https://github.com/Unidata/netcdf-fortran.git build/dependencies/netcdf-fortran
 mkdir -p build/dependencies/netcdf-fortran/build
+
 cd build/dependencies/netcdf-fortran/build
   export FC=gfortran-${GCC_VER} CC=gcc-${GCC_VER} CXX=g++-${GCC_VER}
   NETCDF_PREFIX="`brew --prefix netcdf`"
