@@ -115,6 +115,7 @@ cd build
   chmod u+x run-fpm.sh
 cd -
 
+export PKG_CONFIG_PATH
 ./build/run-fpm.sh test
 
 echo ""
