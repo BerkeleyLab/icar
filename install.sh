@@ -72,7 +72,6 @@ cd build/dependencies/netcdf-fortran/build
   cmake .. \
     -DNETCDF_C_LIBRARY="$NETCDF_PREFIX/lib" \
     -DNETCDF_C_INCLUDE_DIR="$NETCDF_PREFIX/include"
-  set_SUDO_if_needed_to_write_to_directory "$NETCDF_PREFIX"
   sudo make -j4 install
 cd -
 
