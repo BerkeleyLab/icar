@@ -59,33 +59,6 @@ brew install cmake netcdf fftw gcc@$GCC_VER pkg-config coreutils # coreutils sup
 
 PREFIX=`realpath $PREFIX`
 
-# Define the sudo command to be used if the installation path requires administrative permissions
-set_SUDO_if_needed_to_write_to_directory()
-{
-  directory_to_create=$1
-  SUDO_IF_NECESSARY=""
-  echo "Checking whether the directory ${directory_to_create} exists... "
-  if [ -d "${directory_to_create}" ]; then
-    echo "yes"
-    echo "Checking whether I have write permissions to ${directory_to_create} ... "
-    if [ -w "${directory_to_create}" ]; then
-      echo "yes"
-    else
-      echo "no"
-      SUDO_IF_NECESSARY="sudo"
-    fi
-  else
-    echo "no"
-    echo "Checking whether I can create ${directory_to_create} ... "
-    if mkdir -p "${directory_to_create}" >& /dev/null; then
-      echo "yes."
-    else
-      echo "no."
-      SUDO_IF_NECESSARY="sudo"
-    fi
-  fi
-}
-
 mkdir -p build/dependencies
 if [ -d ./build/dependencies/netcdf-fortran ]; then
   rm -rf ./build/dependencies/netcdf-fortran
@@ -100,7 +73,7 @@ cd build/dependencies/netcdf-fortran/build
     -DNETCDF_C_LIBRARY="$NETCDF_PREFIX/lib" \
     -DNETCDF_C_INCLUDE_DIR="$NETCDF_PREFIX/include"
   set_SUDO_if_needed_to_write_to_directory "$NETCDF_PREFIX"
-  $SUDO_IF_NECESSARY make -j4 install
+  sudo make -j4 install
 cd -
 
 GIT_VERSION=`git describe --long --dirty --all --always | sed -e's/heads\///'`
