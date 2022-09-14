@@ -55,7 +55,8 @@ if ! command -v brew > /dev/null ; then
 fi
 
 GCC_VER="12"
-brew install cmake netcdf fftw gcc@$GCC_VER pkg-config coreutils # coreutils supports `realpath` below
+brew tap fortran-lang/fortran
+brew install fpm cmake netcdf fftw gcc@$GCC_VER pkg-config coreutils # coreutils supports `realpath` below
 
 PREFIX=`realpath $PREFIX`
 
