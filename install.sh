@@ -73,7 +73,8 @@ cd build/dependencies/netcdf-fortran/build
   cmake .. \
     -DNETCDF_C_LIBRARY="$NETCDF_PREFIX/lib" \
     -DNETCDF_C_INCLUDE_DIR="$NETCDF_PREFIX/include"
-  sudo make -j4 install
+  make -j4
+  sudo make install
 cd -
 
 GIT_VERSION=`git describe --long --dirty --all --always | sed -e's/heads\///'`
@@ -110,7 +111,7 @@ cd build
   echo "#!/bin/sh"                                                    >  run-fpm.sh
   echo "#-- DO NOT EDIT -- created by icar/install.sh"                >> run-fpm.sh
   echo "export PKG_CONFIG_PATH"                                       >> run-fpm.sh
-  echo "\"${PREFIX}\"/bin/fpm \$@ \\"                                 >> run-fpm.sh
+  echo "`brew --prefix fpm`/bin/fpm \$@ --verbose \\"                       >> run-fpm.sh
   echo "--profile debug \\"                                           >> run-fpm.sh
   echo "--c-compiler \"`pkg-config icar --variable=ICAR_FPM_CC`\" \\" >> run-fpm.sh
   echo "--compiler \"`pkg-config icar --variable=ICAR_FPM_FC`\" \\"   >> run-fpm.sh
