@@ -89,7 +89,8 @@ FPM_FLAG=" $FPM_FLAG -L$NETCDF_LIB_PATH -L$FFTW_LIB_PATH -L$HDF5_LIB_PATH"
 FPM_FC="caf"
 FPM_CC="$CC"
 
-PKG_CONFIG_PATH="$PREFIX"/lib/pkgconfig
+export PKG_CONFIG_PATH="$PREFIX"/lib/pkgconfig
+
 if [ ! -d $PKG_CONFIG_PATH ]; then
   mkdir -p $PKG_CONFIG_PATH
 fi
@@ -107,6 +108,7 @@ cd -
 cd build
   echo "#!/bin/sh"                                                    >  run-fpm.sh
   echo "#-- DO NOT EDIT -- created by icar/install.sh"                >> run-fpm.sh
+  echo "export PKG_CONFIG_PATH"                                       >> run-fpm.sh
   echo "\"${PREFIX}\"/bin/fpm \$@ \\"                                 >> run-fpm.sh
   echo "--profile debug \\"                                           >> run-fpm.sh
   echo "--c-compiler \"`pkg-config icar --variable=ICAR_FPM_CC`\" \\" >> run-fpm.sh
