@@ -54,9 +54,9 @@ if ! command -v brew > /dev/null ; then
   fi
 fi
 
-GCC_VER="12"
-brew tap fortran-lang/fortran
-brew install fpm cmake netcdf fftw gcc@$GCC_VER pkg-config coreutils # coreutils supports `realpath` below
+
+brew tap fortran-lang/fortran # required for building fpm
+brew install fpm opencoarrays cmake netcdf fftw pkg-config coreutils # coreutils supports `realpath` below
 
 PREFIX=`realpath $PREFIX`
 
@@ -68,6 +68,7 @@ git clone https://github.com/Unidata/netcdf-fortran.git build/dependencies/netcd
 mkdir -p build/dependencies/netcdf-fortran/build
 
 cd build/dependencies/netcdf-fortran/build
+  GCC_VER="12" # This should be replaced with code extracting the version number from Homebrew
   export FC=gfortran-${GCC_VER} CC=gcc-${GCC_VER} CXX=g++-${GCC_VER}
   NETCDF_PREFIX="`brew --prefix netcdf`"
   cmake .. \
