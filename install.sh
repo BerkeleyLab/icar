@@ -56,7 +56,8 @@ fi
 
 
 brew tap fortran-lang/fortran # required for building fpm
-brew install fpm opencoarrays cmake netcdf fftw pkg-config coreutils # coreutils supports `realpath` below
+brew install fpm cmake netcdf fftw pkg-config coreutils # coreutils supports `realpath` below
+brew install --build-from-source opencoarrays # installs opencoarrays from the installer rather than through homebrew
 
 PREFIX=`realpath $PREFIX`
 
