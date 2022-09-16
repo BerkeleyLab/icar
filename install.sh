@@ -93,7 +93,7 @@ FPM_FLAG=" $FPM_FLAG -L$NETCDF_LIB_PATH -L$FFTW_LIB_PATH -L$HDF5_LIB_PATH"
 FPM_FC="caf"
 FPM_CC="$CC"
 
-export PKG_CONFIG_PATH="$PREFIX"/lib/pkgconfig
+PKG_CONFIG_PATH="$PREFIX"/lib/pkgconfig
 
 if [ ! -d $PKG_CONFIG_PATH ]; then
   mkdir -p $PKG_CONFIG_PATH
@@ -113,13 +113,18 @@ cd build
   echo "#!/bin/sh"                                                    >  run-fpm.sh
   echo "#-- DO NOT EDIT -- created by icar/install.sh"                >> run-fpm.sh
   echo "export PKG_CONFIG_PATH"                                       >> run-fpm.sh
-  echo "`brew --prefix fpm`/bin/fpm \$@ --verbose \\"                       >> run-fpm.sh
+  echo "`brew --prefix fpm`/bin/fpm \$@ --verbose \\"                 >> run-fpm.sh
   echo "--profile debug \\"                                           >> run-fpm.sh
   echo "--c-compiler \"`pkg-config icar --variable=ICAR_FPM_CC`\" \\" >> run-fpm.sh
   echo "--compiler \"`pkg-config icar --variable=ICAR_FPM_FC`\" \\"   >> run-fpm.sh
   echo "--flag \"`pkg-config icar --variable=ICAR_FPM_FLAG`\""        >> run-fpm.sh
   chmod u+x run-fpm.sh
 cd -
+
+if command -v fpm > /dev/null 2>&1; then
+  brew tap fortran-lang/fortran
+  brew install fpm
+fi
 
 export PKG_CONFIG_PATH
 ./build/run-fpm.sh test
