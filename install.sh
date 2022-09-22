@@ -56,8 +56,7 @@ fi
 
 
 brew tap fortran-lang/fortran # required for building fpm
-brew install fpm cmake netcdf fftw pkg-config coreutils # coreutils supports `realpath` below
-brew install --build-from-source opencoarrays # installs opencoarrays from the installer rather than through homebrew
+brew install opencoarrays fpm cmake netcdf fftw pkg-config coreutils # coreutils supports `realpath` below
 
 PREFIX=`realpath $PREFIX`
 
@@ -109,6 +108,7 @@ cd "$PKG_CONFIG_PATH"
   echo "Version: 1.0.0"                                                   >> icar.pc
 cd -
 
+export PKG_CONFIG_PATH
 cd build
   echo "#!/bin/sh"                                                    >  run-fpm.sh
   echo "#-- DO NOT EDIT -- created by icar/install.sh"                >> run-fpm.sh
