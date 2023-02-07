@@ -39,6 +39,7 @@ module microphysics
     use options_interface,          only: options_t
     use domain_interface,           only: domain_t
     use output_interface,           only: output_t
+    use mp_network,                 only: ml_mp, ml_mp_init
 
     implicit none
 
@@ -111,6 +112,12 @@ contains
             if (this_image()==1) write(*,*) "    WSM3 Microphysics"
             call wsm3init(rhoair0,rhowater,rhosnow,cliq,cpv, allowed_to_read=.True.)
             precip_delta=.True.
+        elseif(options%physics%microphysics==kMP_ML)
+            if (this_image()==1) write(*,*) "    MP_ML Microphysics"
+            call mp_ml_init(network_files = [ &
+               string_t("qv.json"), string_t("qr.json"), string_t("qc.json"), string_t("ni.json"), string_t("th.json"), &
+               string_t("nr.json"), string_t("qs.json"), string_t("qg.json"), string_t("temp.json"), string_t("press.json"), &
+            ])
         endif
         if (options%output_options%output_training) then
           block 
@@ -245,6 +252,9 @@ contains
 
         elseif (options%physics%microphysics==kMP_WSM3) then
             call mp_wsm3_var_request(options)
+
+        elseif (options%physics%microphysics    == kMP_ML) then
+            call mp_thompson_aer_var_request(options)
 
         ! For the ideal test case(s), we need to be able to advect qv, without initializing microphysics:
         elseif (options%parameters%ideal) then
@@ -469,6 +479,28 @@ contains
                               its = its, ite = ite,                   & ! tile dims
                               jts = jts, jte = jte,                   &
                               kts = kts, kte = kte)
+        if (options%physics%microphysics==kMP_ML) then
+            ! call the neural-network microphysics
+          block 
+            real, allocatable outputs(:,:,:)
+
+            outputs = ml_mp(qv = domain%water_vapor%data_3d,           &
+                       qr = domain%rain_mass%data_3d,             &
+                       qc = domain%cloud_water_mass%data_3d,      &
+                       ni = domain%cloud_ice_number%data_3d,      &
+                       th = domain%potential_temperature%data_3d, &
+                       nr = domain%rain_number%data_3d,           &
+                       qs = domain%snow_mass%data_3d,             &
+                       qg = domain%graupel_mass%data_3d,          &
+                       p =  domain%pressure%data_3d,              &
+                       dt_in = dt,                                &
+                       ims = ims, ime = ime,                      & ! memory dims
+                       jms = jms, jme = jme,                      &
+                       kms = kms, kme = kme,                      &
+                       its = its, ite = ite,                      & ! tile dims
+                       jts = jts, jte = jte,                      &
+                       kts = kts, kte = kte)
+           end block
 
         elseif (options%physics%microphysics==kMP_THOMP_AER) then
             ! call the thompson microphysics
