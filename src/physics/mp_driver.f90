@@ -39,7 +39,7 @@ module microphysics
     use options_interface,          only: options_t
     use domain_interface,           only: domain_t
     use output_interface,           only: output_t
-    use mp_network,                 only: ml_mp, ml_mp_init
+    use mp_ml,                      only: ml_mp, ml_mp_init
 
     implicit none
 
@@ -481,10 +481,8 @@ contains
                               kts = kts, kte = kte)
         if (options%physics%microphysics==kMP_ML) then
             ! call the neural-network microphysics
-          block 
-            real, allocatable outputs(:,:,:)
-
-            outputs = ml_mp(qv = domain%water_vapor%data_3d,           &
+            call ml_mp(&
+                       qv = domain%water_vapor%data_3d,           &
                        qr = domain%rain_mass%data_3d,             &
                        qc = domain%cloud_water_mass%data_3d,      &
                        ni = domain%cloud_ice_number%data_3d,      &
@@ -492,7 +490,7 @@ contains
                        nr = domain%rain_number%data_3d,           &
                        qs = domain%snow_mass%data_3d,             &
                        qg = domain%graupel_mass%data_3d,          &
-                       p =  domain%pressure%data_3d,              &
+                       press =  domain%pressure%data_3d,          &
                        dt_in = dt,                                &
                        ims = ims, ime = ime,                      & ! memory dims
                        jms = jms, jme = jme,                      &
@@ -500,7 +498,6 @@ contains
                        its = its, ite = ite,                      & ! tile dims
                        jts = jts, jte = jte,                      &
                        kts = kts, kte = kte)
-           end block
 
         elseif (options%physics%microphysics==kMP_THOMP_AER) then
             ! call the thompson microphysics
