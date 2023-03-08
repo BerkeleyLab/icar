@@ -350,6 +350,7 @@ module icar_constants
     integer, parameter :: kMP_WSM6       = 4
     integer, parameter :: kMP_THOMP_AER  = 5
     integer, parameter :: kMP_WSM3       = 6
+    integer, parameter :: kMP_ML         = 7
 
     integer, parameter :: kPBL_BASIC     = 1
     integer, parameter :: kPBL_SIMPLE    = 2
