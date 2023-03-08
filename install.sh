@@ -71,9 +71,11 @@ cd build/dependencies/netcdf-fortran/build
   GCC_VER="12" # This should be replaced with code extracting the version number from Homebrew
   export FC=gfortran-${GCC_VER} CC=gcc-${GCC_VER} CXX=g++-${GCC_VER}
   NETCDF_PREFIX="`brew --prefix netcdf`"
+  NETCDFF_LIB_PATH="/usr/local/lib"
   cmake .. \
     -DNETCDF_C_LIBRARY="$NETCDF_PREFIX/lib" \
-    -DNETCDF_C_INCLUDE_DIR="$NETCDF_PREFIX/include"
+    -DNETCDF_C_INCLUDE_DIR="$NETCDF_PREFIX/include" \
+    -DCMAKE_INSTALL_PATH="$NETCDFF_LIB_PATH"
   make -j4
   sudo make install
 cd -
@@ -88,7 +90,7 @@ FPM_FLAG="-cpp -DUSE_ASSERTIONS=.true."
 FPM_FLAG=" $FPM_FLAG -I$FFTW_INCLUDE_PATH"
 FPM_FLAG=" $FPM_FLAG -fallow-argument-mismatch -ffree-line-length-none"
 FPM_FLAG=" $FPM_FLAG -DVERSION=\\\'$GIT_VERSION\\\'"
-FPM_FLAG=" $FPM_FLAG -L$NETCDF_LIB_PATH -L$FFTW_LIB_PATH -L$HDF5_LIB_PATH"
+FPM_FLAG=" $FPM_FLAG -L$NETCDF_LIB_PATH -L$FFTW_LIB_PATH -L$HDF5_LIB_PATH -L$NETCDFF_LIB_PATH"
 FPM_FC="caf"
 FPM_CC="$CC"
 
