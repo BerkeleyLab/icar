@@ -56,33 +56,14 @@ fi
 
 
 brew tap fortran-lang/fortran # required for building fpm
-brew install opencoarrays fpm cmake netcdf fftw pkg-config coreutils # coreutils supports `realpath` below
+brew install opencoarrays fpm cmake netcdf netcdf-fortran fftw pkg-config coreutils # coreutils supports `realpath` below
 
 PREFIX=`realpath $PREFIX`
-
-mkdir -p build/dependencies
-if [ -d ./build/dependencies/netcdf-fortran ]; then
-  rm -rf ./build/dependencies/netcdf-fortran
-fi
-git clone https://github.com/Unidata/netcdf-fortran.git build/dependencies/netcdf-fortran
-mkdir -p build/dependencies/netcdf-fortran/build
-
-cd build/dependencies/netcdf-fortran/build
-  GCC_VER="12" # This should be replaced with code extracting the version number from Homebrew
-  export FC=gfortran-${GCC_VER} CC=gcc-${GCC_VER} CXX=g++-${GCC_VER}
-  NETCDF_PREFIX="`brew --prefix netcdf`"
-  NETCDFF_LIB_PATH="/usr/local/lib"
-  cmake .. \
-    -DNETCDF_C_LIBRARY="$NETCDF_PREFIX/lib" \
-    -DNETCDF_C_INCLUDE_DIR="$NETCDF_PREFIX/include" \
-    -DCMAKE_INSTALL_PATH="$NETCDFF_LIB_PATH"
-  make -j4
-  sudo make install
-cd -
 
 GIT_VERSION=`git describe --long --dirty --all --always | sed -e's/heads\///'`
 FFTW_INCLUDE_PATH="`brew --prefix fftw`/include"
 NETCDF_LIB_PATH="`brew --prefix netcdf`/lib"
+NETCDFF_LIB_PATH="`brew --prefix netcdf-fortran`/lib"
 HDF5_LIB_PATH="`brew --prefix hdf5`/lib"
 FFTW_LIB_PATH="`brew --prefix fftw`/lib"
 
@@ -111,6 +92,7 @@ cd "$PKG_CONFIG_PATH"
 cd -
 
 export PKG_CONFIG_PATH
+mkdir -p build
 cd build
   echo "#!/bin/sh"                                                    >  run-fpm.sh
   echo "#-- DO NOT EDIT -- created by icar/install.sh"                >> run-fpm.sh
