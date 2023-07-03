@@ -1,5 +1,5 @@
 module mp_ml
-  use inference_engine_m, only : inference_engine_t, outputs_t, inputs_t
+  use inference_engine_m, only : inference_engine_t, outputs_t, inputs_t, matmul_t
   use string_m, only : string_t
   use sigmoid_m, only : sigmoid_t
   use file_m, only : file_t
@@ -40,18 +40,18 @@ contains
     end do
 
     do concurrent(n=1:num_networks)
-      outputs(its:ite, jts:jte, n) = networks(n)%infer(inputs)
+      outputs(its:ite, jts:jte, n) = networks(n)%infer(inputs, matmul_t())
     end do
 
     do concurrent(i = its:ite, j = jts:jte)
-      qv(i,:,j) = max(0., qv(i,:,j) + outputs(i,j,1)%outputs_(:)*dt_in)
-      qr(i,:,j) = max(0., qr(i,:,j) + outputs(i,j,2)%outputs_(:)*dt_in)
-      qc(i,:,j) = max(0., qc(i,:,j) + outputs(i,j,3)%outputs_(:)*dt_in)
-      ni(i,:,j) = max(0., ni(i,:,j) + outputs(i,j,4)%outputs_(:)*dt_in)
-      th(i,:,j) = max(0., th(i,:,j) + outputs(i,j,5)%outputs_(:)*dt_in)
-      nr(i,:,j) = max(0., nr(i,:,j) + outputs(i,j,6)%outputs_(:)*dt_in)
-      qs(i,:,j) = max(0., qs(i,:,j) + outputs(i,j,7)%outputs_(:)*dt_in)
-      qg(i,:,j) = max(0., qg(i,:,j) + outputs(i,j,8)%outputs_(:)*dt_in)
+      qv(i,:,j) = max(0., qv(i,:,j) + outputs(i,j,1)%outputs()*dt_in)
+      qr(i,:,j) = max(0., qr(i,:,j) + outputs(i,j,2)%outputs()*dt_in)
+      qc(i,:,j) = max(0., qc(i,:,j) + outputs(i,j,3)%outputs()*dt_in)
+      ni(i,:,j) = max(0., ni(i,:,j) + outputs(i,j,4)%outputs()*dt_in)
+      th(i,:,j) = max(0., th(i,:,j) + outputs(i,j,5)%outputs()*dt_in)
+      nr(i,:,j) = max(0., nr(i,:,j) + outputs(i,j,6)%outputs()*dt_in)
+      qs(i,:,j) = max(0., qs(i,:,j) + outputs(i,j,7)%outputs()*dt_in)
+      qg(i,:,j) = max(0., qg(i,:,j) + outputs(i,j,8)%outputs()*dt_in)
     end do
   end subroutine
 
