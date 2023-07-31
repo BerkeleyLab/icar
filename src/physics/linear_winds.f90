@@ -316,6 +316,15 @@ contains
         step_size = min(minimum_step, minval(z_top - z_bottom))
         if (step_size < 5) then
             if (this_image()==1) write(*,*) "WARNING: Very small vertical step size in linear winds, check layer thicknesses in output"
+            ! BK in certrain (fringe?) cases, very small differences occur here that do not occur in the actual grid object (because we have warnings for that)
+            !  Need to check consistency of dz_interface(i)/z_interface(i) for the top layer, where this tends to happen (z+1?)
+            if (this_image()==1) then
+                write(*,*)  "      minval(z_top - z_bottom)=",minval(z_top - z_bottom)
+                write(*,*)  "      minval(z_top)",minval(z_top)
+                write(*,*)  "      minval(z_bottom)=",minval(z_bottom)
+                write(*,*)  "   Try setting flat_z_height = -1 or reduce Sleve decay rates"
+            endif
+            error stop
         endif
 
         current_z = start_z + step_size/2 ! we want the value in the middle of each theoretical layer
@@ -739,8 +748,8 @@ contains
 
                         ! call update_irregular_grid(u,v, nsq_values(j), z, domain, minimum_layer_size)
                         call linear_perturbation(u, v, exp(nsq_values(j)),                                                                      &
-                                                 domain%global_z_interface(:,z,:) - domain%global_terrain,                                      &
-                                                 domain%global_z_interface(:,z,:) - domain%global_terrain + domain%global_dz_interface(:,z,:),  &
+                                                 domain%global_z_interface(:,z,:) - domain%global_terrain,                                      &   ! z_bottom
+                                                 domain%global_z_interface(:,z,:) - domain%global_terrain + domain%global_dz_interface(:,z,:),  &   ! z_top
                                                  minimum_layer_size, domain%terrain_frequency, lt_data_m)
 
                     else
@@ -978,7 +987,10 @@ contains
 
         ! smooth array has it's own parallelization, so this probably can't go in a critical section
         if (smooth_nsq) then
-            call smooth_array(nsquared, winsz, ydim=3)
+            domain%smooth_nsquared%data_3d(ims:ime,:,jms:jme) = nsquared(:,:,:)
+            call domain%smooth_nsquared%exchange_directional_sync()
+            call smooth_array(domain%smooth_nsquared%data_3d, winsz, ydim=3)
+            nsquared(:,:,:) = domain%smooth_nsquared%data_3d(ims:ime,:,jms:jme)
         endif
 
         !$omp parallel firstprivate(ims, ime, jms, jme, ims_u, ime_u, jms_v, jme_v, kms, kme, nx,nxu,ny,nyv,nz), &

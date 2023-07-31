@@ -4,7 +4,7 @@ submodule(options_interface) options_implementation
                                            kNO_STOCHASTIC, kVERSION_STRING, kMAX_FILE_LENGTH, kMAX_NAME_LENGTH, pi, &
                                            kWATER_LAKE, &
                                            kWIND_LINEAR, kLINEAR_ITERATIVE_WINDS, kITERATIVE_WINDS, kCONSERVE_MASS
-    use io_routines,                only : io_newunit
+    use io_routines,                only : io_newunit, check_writeable_path
     use time_io,                    only : find_timestep_in_file
     use time_delta_object,          only : time_delta_t
     use time_object,                only : Time_type
@@ -510,7 +510,7 @@ contains
         restart_file = get_image_filename(this_image(), restart_file, restart_time)
         restart_step = find_timestep_in_file(restart_file, 'time', restart_time, time_at_step)
 
-        ! check to see if we actually udpated the restart date and print if in a more verbose mode
+        ! check to see if we actually updated the restart date and print if in a more verbose mode
         if (options%debug) then
             if (restart_time /= time_at_step) then
                 if (this_image()==1) write(*,*) " updated restart date: ", trim(time_at_step%as_string())
@@ -702,9 +702,12 @@ contains
             options%restart_count = max(24, nint(restartinterval))
         endif
 
+        ! check if directory paths to output and restart file strings exist
+        ! stop and report error if they do not rather than failing at write step
+        call check_writeable_path(output_file)
+        call check_writeable_path(restart_file)
         options%output_file = output_file
         options%restart_file = restart_file
-
 
     end subroutine output_namelist
 
@@ -974,7 +977,7 @@ contains
         ! parameters to read
 
         real    :: dx, dxlow, outputinterval, restartinterval, inputinterval, t_offset, smooth_wind_distance, frames_per_outfile, agl_cap
-        real    :: cfl_reduction_factor
+        real    :: cfl_reduction_factor, rh_limit, sst_min_limit, cp_limit
         integer :: ntimesteps, wind_iterations
         integer :: longitude_system
         integer :: nz, n_ext_winds,buffer, warning_level, cfl_strictness
@@ -994,7 +997,7 @@ contains
 
 
         namelist /parameters/ ntimesteps, wind_iterations, outputinterval, frames_per_outfile, inputinterval, surface_io_only,                &
-                              dx, dxlow, ideal, readz, readdz, nz, t_offset,                             &
+                              dx, dxlow, ideal, readz, readdz, nz, t_offset, rh_limit, sst_min_limit, cp_limit, &
                               debug, warning_level, interactive, restart,                                &
                               external_winds, buffer, n_ext_winds, advect_density, smooth_wind_distance, &
                               mean_winds, mean_fields, z_is_geopotential, z_is_on_interface,             &
@@ -1019,6 +1022,9 @@ contains
         external_winds      = .False.
         n_ext_winds         = 1
         t_offset            = (-9999)
+        rh_limit            = -1
+        sst_min_limit       = 273.15
+        cp_limit            = 500
         buffer              = 0
         advect_density      = .False.
         t_is_potential      = .True.
@@ -1111,6 +1117,17 @@ contains
         endif
 
         options%t_offset=t_offset
+
+        if (rh_limit > 5) then
+            write(*,*) "RH limit >5 specified, assuming it is in %"
+            rh_limit = rh_limit/100
+        endif
+        options%rh_limit=rh_limit
+
+        options%sst_min_limit = sst_min_limit
+
+        options%cp_limit = cp_limit / 3600.0 ! convert from mm/hr to mm/s
+
         if (smooth_wind_distance<0) then
             write(*,*) " Wind smoothing must be a positive number"
             write(*,*) " smooth_wind_distance = ",smooth_wind_distance
@@ -2002,12 +2019,6 @@ contains
         options%decay_rate_S_topo = decay_rate_S_topo ! decay_rate_small_scale_topography !
         options%sleve_n = sleve_n
         options%use_terrain_difference = use_terrain_difference
-
-        !if (fixed_dz_advection) then
-        !    print*, "WARNING: setting fixed_dz_advection to true is not recommended, use wind = 2 instead"
-        !    print*, "if you want to continue and enable this, you will need to change this code in the options_obj"
-        !    error stop
-        !endif
 
 
         if (dz_modifies_wind) then
