@@ -124,13 +124,26 @@ contains
           block 
             integer full_var_list(kMAX_STORAGE_VARS)
 
-            variable_list = [ &
-              kVARS%w_real,  kVARS%pressure,  kVARS%potential_temperature,  kVARS%temperature,  &
-              kVARS%water_vapor,  kVARS%cloud_water,  kVARS%cloud_number_concentration,  kVARS%cloud_ice, &
-              kVARS%ice_number_concentration,  kVARS%rain_in_air,  kVARS%rain_number_concentration,  &
-              kVARS%snow_in_air, kVARS%snow_number_concentration,  kVARS%graupel_in_air, &
-              kVARS%graupel_number_concentration,  kVARS%precipitation, kVARS%snowfall,  kVARS%graupel &
-            ]
+            select case(options%physics%microphysics)
+              case(kMP_THOMPSON)
+                variable_list = [ &
+                  kVARS%w_real,  kVARS%pressure,  kVARS%potential_temperature,  kVARS%temperature,  &
+                  kVARS%water_vapor,  kVARS%cloud_water,  kVARS%cloud_number_concentration,  kVARS%cloud_ice, &
+                  kVARS%ice_number_concentration,  kVARS%rain_in_air,  kVARS%rain_number_concentration,  &
+                  kVARS%snow_in_air, kVARS%snow_number_concentration,  kVARS%graupel_in_air, &
+                  kVARS%graupel_number_concentration,  kVARS%precipitation, kVARS%snowfall,  kVARS%graupel &
+                ]
+              case(kMP_SB04)
+                variable_list = [ &
+                  kVARS%w_real,  kVARS%pressure,  kVARS%potential_temperature,  kVARS%temperature,  &
+                  kVARS%water_vapor,  kVARS%cloud_water,  kVARS%cloud_ice, &
+                  kVARS%rain_in_air, &
+                  kVARS%snow_in_air, &
+                  kVARS%precipitation, kVARS%snowfall &
+                ]
+              case default
+                error stop "unexpected microphysics option"
+            end select 
 
             full_var_list = 0
             full_var_list(variable_list) = 1
