@@ -478,7 +478,7 @@ contains
     !!  @param kts, kte   = start end of z tile to process- 0D - input  - n      - scalar
     !!
     !!----------------------------------------------------------
-    subroutine mp_simple(pressure, temperature, rho, qv, qc, qr, qs, rain, snow, dt, dz, kms, kme, kts, kte)
+    subroutine mp_simple(pressure, temperature, rho, qv, qc, qr, qs, rain, snow, dt, dz, kms, kme, kts, kte, sediment_flag)
         implicit none
         real,   intent(inout)   :: pressure     (kms:kme)
         real,   intent(inout)   :: temperature  (kms:kme)
@@ -491,6 +491,7 @@ contains
         real,   intent(in)      :: dz           (kms:kme)
         real,   intent(in)      :: dt
         integer,intent(in)      :: kms, kme, kts, kte
+        logical,intent(in)      :: sediment_flag
 
         real    :: fall_rate(kms:kme)
         real    :: cfl, snowfall, qvsat
@@ -502,6 +503,8 @@ contains
         do i = kts, kte
             call mp_conversions(pressure(i), temperature(i), qv(i), qc(i), qr(i), qs(i), dt)
         enddo
+
+        if (.not. sediment_flag) return
 
         ! SEDIMENTATION for rain
         if (maxval(qr)>SMALL_VALUE) then
@@ -594,7 +597,7 @@ contains
     !!----------------------------------------------------------
     subroutine mp_simple_driver(pressure,th,pii,rho,qv,qc,qr,qs,rain,snow,dt,dz,    &
                                 ims, ime, jms, jme, kms, kme, &
-                                its, ite, jts, jte, kts, kte)
+                                its, ite, jts, jte, kts, kte, sediment_flag)
         implicit none
         real, intent(inout) :: pressure (ims:ime,kms:kme,jms:jme)
         real, intent(inout) :: th       (ims:ime,kms:kme,jms:jme)
@@ -610,6 +613,7 @@ contains
         real, intent(in)    :: dz       (ims:ime,kms:kme,jms:jme)
         integer,intent(in)  :: ims, ime, jms, jme, kms, kme
         integer,intent(in)  :: its, ite, jts, jte, kts, kte
+        logical,intent(in)  :: sediment_flag
 
         ! local variables
         real,allocatable,dimension(:) :: temperature
@@ -635,7 +639,7 @@ contains
                 call mp_simple(pressure(i,:,j), temperature, rho(i,:,j), qv(i,:,j), &
                                qc(i,:,j), qr(i,:,j), qs(i,:,j),                     &
                                rain(i,j), snow(i,j),                                &
-                               dt, dz(i,:,j), kms, kme, kts, kte)
+                               dt, dz(i,:,j), kms, kme, kts, kte, sediment_flag)
                 th(i,:,j) = temperature / pii(i,:,j)
 
             enddo

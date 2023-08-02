@@ -567,7 +567,7 @@ contains
                                   kms = kms, kme = kme,                   &
                                   its = its, ite = ite,                   & ! tile dims
                                   jts = jts, jte = jte,                   &
-                                  kts = kts, kte = kte)
+                                  kts = kts, kte = kte, sediment_flag = .true.)
 
         ! elseif (options%physics%microphysics==kMP_MORRISON) then
         !     call MP_MORR_TWO_MOMENT(itimestep,                         &
@@ -728,7 +728,61 @@ contains
 
 
     end subroutine process_halo
+    
+    subroutine output_training(domain, options, mp_dt, &
+        ims, ime, jms, jme, kms, kme, &
+        its, ite, jts, jte, kts, kte  &
+    )
+        implicit none
+        type(domain_t), intent(inout) :: domain
+        type(options_t),intent(in)    :: options
+        real,           intent(in)    :: mp_dt
+        integer, intent(in) :: ims, ime, jms, jme, kms, kme ! memory dims
+        integer, intent(in) :: its, ite, jts, jte, kts, kte ! tile dims
+        real, dimension(:,:,:), allocatable :: &
+            tmp_domain_potential_temperature_data_3d, tmp_domain_water_vapor_data_3d, &
+            tmp_domain_cloud_water_mass_data_3d, tmp_domain_rain_mass_data_3d, tmp_domain_snow_mass_data_3d
+        real, dimension(:,:), allocatable :: tmp_precipitation, tmp_snowfall
 
+        call training_input%save_file('training_input.nc', training_step, domain%model_time)
+
+         tmp_domain_potential_temperature_data_3d = domain%potential_temperature%data_3d
+         tmp_domain_water_vapor_data_3d = domain%water_vapor%data_3d
+         tmp_domain_cloud_water_mass_data_3d = domain%cloud_water_mass%data_3d
+         tmp_domain_rain_mass_data_3d = domain%rain_mass%data_3d
+         tmp_domain_snow_mass_data_3d = domain%snow_mass%data_3d
+         allocate(tmp_precipitation(ims:ime,jms:jme), source = 0.)
+         allocate(tmp_snowfall(ims:ime,jms:jme), source = 0.)
+
+        ! call the simple microphysics routine of SB04
+        call mp_simple_driver(domain%pressure%data_3d,                  &
+            domain%potential_temperature%data_3d,     &
+            domain%exner%data_3d,                     &
+            domain%density%data_3d,                   &
+            domain%water_vapor%data_3d,               &
+            domain%cloud_water_mass%data_3d,          &
+            domain%rain_mass%data_3d,                 &
+            domain%snow_mass%data_3d,                 &
+            tmp_precipitation, &
+            tmp_snowfall,      &
+            mp_dt,                                    &
+            domain%dz_mass%data_3d,                   &
+            ims = ims, ime = ime,                   & ! memory dims
+            jms = jms, jme = jme,                   &
+            kms = kms, kme = kme,                   &
+            its = its, ite = ite,                   & ! tile dims
+            jts = jts, jte = jte,                   &
+            kts = kts, kte = kte, sediment_flag = .false.)
+
+        call training_output%save_file('training_output.nc', training_step, domain%model_time)
+
+        domain%potential_temperature%data_3d = tmp_domain_potential_temperature_data_3d
+        domain%water_vapor%data_3d = tmp_domain_water_vapor_data_3d
+        domain%cloud_water_mass%data_3d = tmp_domain_cloud_water_mass_data_3d
+        domain%rain_mass%data_3d = tmp_domain_rain_mass_data_3d
+        domain%snow_mass%data_3d = tmp_domain_snow_mass_data_3d
+
+    end subroutine
 
     !>----------------------------------------------------------
     !! Microphysical driver
@@ -796,7 +850,6 @@ contains
                 kte = min(kte, options%mp_options%top_mp_level)
             endif
 
-
             if (present(subset)) then
                 call process_subdomain(domain, options, mp_dt,                 &
                                        its = its + subset, ite = ite - subset, &
@@ -808,16 +861,17 @@ contains
                                        ids = ids, ide = ide,                   & ! domain dims
                                        jds = jds, jde = jde,                   &
                                        kds = kds, kde = kde)
-                if (mod(training_step,10)==0) then
-                  call training_output%save_file('training_output.nc', training_step/10, domain%model_time)
-                end if
-                training_step = training_step + 1
             endif
 
             if (present(halo)) then
-                if (mod(training_step,10)==0) then
-                  call training_input%save_file('training_input.nc', training_step/10, domain%model_time)
-                end if
+                call output_training(domain, options, mp_dt, &
+                ims = ims, ime = ime,                   & ! memory dims
+                jms = jms, jme = jme,                   &
+                kms = kms, kme = kme,                   &
+                its = its, ite = ite,                   & ! tile dims
+                jts = jts, jte = jte,                   &
+                kts = kts, kte = kte)
+
                 call process_halo(domain, options, mp_dt, halo, &
                                        its = its, ite = ite,    &
                                        jts = jts, jte = jte,    &
@@ -879,4 +933,5 @@ contains
             deallocate(this_snow)
         endif
     end subroutine mp_finish
+
 end module microphysics
