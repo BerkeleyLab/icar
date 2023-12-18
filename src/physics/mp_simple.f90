@@ -58,7 +58,7 @@ module module_mp_simple
 
     implicit none
     private
-    public :: mp_simple_driver, mp_simple_var_request
+    public :: mp_simple_driver, mp_simple_var_request, mp_simple_sediment
 
     ! parameters should come from atm_utilties or icar_constants modules
     real, parameter :: LH_vapor = 2.26E6 ! J/kg
@@ -478,6 +478,93 @@ contains
     !!  @param kts, kte   = start end of z tile to process- 0D - input  - n      - scalar
     !!
     !!----------------------------------------------------------
+
+    subroutine mp_simple_sediment(pressure, temperature, rho, qv, qc, qr, qs, rain, snow, dt, dz, kms, kme, kts, kte, sediment_flag)
+        implicit none
+        real,   intent(inout)   :: pressure     (kms:kme)
+        real,   intent(inout)   :: temperature  (kms:kme)
+        real,   intent(inout)   :: rho          (kms:kme)
+        real,   intent(inout)   :: qv           (kms:kme)
+        real,   intent(inout)   :: qc           (kms:kme)
+        real,   intent(inout)   :: qr           (kms:kme)
+        real,   intent(inout)   :: qs           (kms:kme)
+        real,   intent(inout)   :: rain, snow
+        real,   intent(in)      :: dz           (kms:kme)
+        real,   intent(in)      :: dt
+        integer,intent(in)      :: kms, kme, kts, kte
+        logical,intent(in)      :: sediment_flag
+
+        real    :: fall_rate(kms:kme)
+        real    :: cfl, snowfall, qvsat
+        integer :: i, cfl_step
+        real    :: L_evap, L_subl, L_melt
+
+        L_melt = -1 * LH_liquid  ! J/kg (should change with temperature)
+
+        if (.not. sediment_flag) return
+
+        ! SEDIMENTATION for rain
+        if (maxval(qr)>SMALL_VALUE) then
+            fall_rate = rain_fall_rate
+
+            ! check the CFL criteria for the sedimentation routine
+            cfl = ceiling(maxval( dt / dz * fall_rate))
+            ! update the fall_rate to be grid cell and CFL time step relative
+            fall_rate = dt * fall_rate / cfl
+            ! substepping to satisfy CFL criteria
+            do cfl_step = 1, nint(cfl)
+                rain = rain + sediment(qr, fall_rate, rho, dz, kms, kme, kts, kte)
+                ! allow any rain that reached an unsaturated layer to evaporate
+                do i = kts, kte
+                    L_evap = -1 * (LH_vapor + (373.15 - temperature(i)) * dLHvdt)   ! J/kg
+                    qvsat  = sat_mr(temperature(i), pressure(i))
+                    ! if the air is not saturated, try evaporating rain
+                    if (qv(i) < qvsat) then
+                        if (qr(i) > SMALL_VALUE) then
+                            ! evaporate rain
+                            call phase_change(pressure(i), temperature(i), qr(i), qvsat, qv(i), L_evap, cloud2rain/(2*nint(cfl)))
+                        endif
+                    endif
+                enddo
+            enddo
+
+        endif
+
+        ! SEDIMENTATION for snow
+        if (maxval(qs) > SMALL_VALUE) then
+            fall_rate = snow_fall_rate
+
+            ! check the CFL criteria for the sedimentation routine
+            cfl = ceiling(maxval( dt / dz * fall_rate))
+            ! update the fall_rate to be grid cell and CFL time step relative
+            fall_rate = dt * fall_rate / cfl
+            ! substepping to satisfy CFL criteria
+            do cfl_step = 1, nint(cfl)
+                snowfall = sediment(qs, fall_rate, rho, dz, kms, kme, kts, kte)
+                snow = snow + snowfall
+                rain = rain + snowfall
+
+                ! allow any snow that reached a unsaturated layer to sublimate
+                do i = kts, kte
+                    L_evap = -1 * (LH_vapor + (373.15 - temperature(i)) * dLHvdt)   ! J/kg
+                    L_subl = L_melt + L_evap ! J/kg
+                    qvsat  = sat_mr(temperature(i), pressure(i))
+                    ! if not saturated, sublimate the snow
+                    ! if tracking snow and rain separately, should probably think about
+                    ! condensing water on the snow and melting some into rain...
+                    if (qv(i) < qvsat) then
+                        if (qs(i) > SMALL_VALUE) then
+                            ! sublimate snow
+                            call phase_change(pressure(i), temperature(i), qs(i),                  &
+                                              qvsat, qv(i), L_subl, cloud2snow/(2*nint(cfl)))
+                        endif
+                    endif
+                enddo
+            enddo
+        endif
+
+    end subroutine mp_simple_sediment
+
     subroutine mp_simple(pressure, temperature, rho, qv, qc, qr, qs, rain, snow, dt, dz, kms, kme, kts, kte, sediment_flag)
         implicit none
         real,   intent(inout)   :: pressure     (kms:kme)
@@ -567,7 +654,6 @@ contains
         endif
 
     end subroutine mp_simple
-
 
     !>----------------------------------------------------------
     !!  Driver code to control simple microphysics

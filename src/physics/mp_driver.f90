@@ -28,7 +28,7 @@
 module microphysics
     ! use data_structures
     use icar_constants
-    use string_m, only : string_t
+    use sourcery_m, only : string_t
     use mod_wrf_constants
     use module_mp_thompson_aer,     only: mp_gt_driver_aer, thompson_aer_init
     use module_mp_thompson,         only: mp_gt_driver, thompson_init
@@ -115,10 +115,7 @@ contains
             precip_delta=.True.
         elseif(options%physics%microphysics==kMP_ML) then
             if (this_image()==1) write(*,*) "    MP_ML Microphysics"
-            call ml_mp_init(network_files = [ &
-               string_t("qv.json"), string_t("qr.json"), string_t("qc.json"), string_t("ni.json"), string_t("th.json"), &
-               string_t("nr.json"), string_t("qs.json"), string_t("qg.json"), string_t("temp.json"), string_t("press.json") &
-            ])
+            call ml_mp_init(network_file = string_t("training_network.json"))
         endif
         if (options%output_options%output_training) then
           block 
@@ -496,17 +493,18 @@ contains
         elseif (options%physics%microphysics==kMP_ML) then
             ! call the neural-network microphysics
             call ml_mp(&
-                       qv = domain%water_vapor%data_3d,           &
-                       qr = domain%rain_mass%data_3d,             &
-                       qc = domain%cloud_water_mass%data_3d,      &
-                       qi = domain%cloud_ice_mass%data_3d,        &
-                       ni = domain%cloud_ice_number%data_3d,      &
-                       th = domain%potential_temperature%data_3d, &
-                       nr = domain%rain_number%data_3d,           &
-                       qs = domain%snow_mass%data_3d,             &
-                       qg = domain%graupel_mass%data_3d,          &
-                       temp = domain%temperature%data_3d,         &
                        press =  domain%pressure%data_3d,          &
+                       temp = domain%temperature%data_3d,         &
+                       th = domain%potential_temperature%data_3d, &
+                       qv = domain%water_vapor%data_3d,           &
+                       qc = domain%cloud_water_mass%data_3d,      &
+                       qr = domain%rain_mass%data_3d,             &
+                       qs = domain%snow_mass%data_3d,             &
+                       qi = domain%cloud_ice_mass%data_3d,        &
+                       rho  = domain%density%data_3d,             &
+                       rain = precipitation,                      &
+                       snow = snowfall,                           &
+                       dz   = domain%dz_mass%data_3d,             &
                        dt_in = dt,                                &
                        ims = ims, ime = ime,                      & ! memory dims
                        jms = jms, jme = jme,                      &
@@ -776,11 +774,17 @@ contains
 
         call training_output%save_file('training_output.nc', training_step, domain%model_time)
 
+        domain%potential_temperature%data_3d = input_domain_potential_temperature_data_3d
+        domain%water_vapor%data_3d           = input_domain_water_vapor_data_3d
+        domain%cloud_water_mass%data_3d      = input_domain_cloud_water_mass_data_3d
+        domain%rain_mass%data_3d             = input_domain_rain_mass_data_3d
+        domain%snow_mass%data_3d             = input_domain_snow_mass_data_3d
+
         domain%potential_temperature%data_3d = tmp_domain_potential_temperature_data_3d
-        domain%water_vapor%data_3d = tmp_domain_water_vapor_data_3d
-        domain%cloud_water_mass%data_3d = tmp_domain_cloud_water_mass_data_3d
-        domain%rain_mass%data_3d = tmp_domain_rain_mass_data_3d
-        domain%snow_mass%data_3d = tmp_domain_snow_mass_data_3d
+        domain%water_vapor%data_3d           = tmp_domain_water_vapor_data_3d
+        domain%cloud_water_mass%data_3d      = tmp_domain_cloud_water_mass_data_3d
+        domain%rain_mass%data_3d             = tmp_domain_rain_mass_data_3d
+        domain%snow_mass%data_3d             = tmp_domain_snow_mass_data_3d
 
     end subroutine
 
