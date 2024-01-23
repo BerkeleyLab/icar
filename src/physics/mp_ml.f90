@@ -33,7 +33,7 @@ contains
     type(tensor_t) inputs( its:ite, kts:kte, jts:jte)
 
     do concurrent(i=its:ite, j=jts:jte, k=kts:kte)
-      inputs(i,j,k) = inputs_t( &
+      inputs(i,j,k) = tensor_t( &
         [press(i,k,j), th(i,k,j), temp(i,k,j), qv(i,k,j), qc(i,k,j), qr(i,k,j), qs(i,k,j), qi(i,k,j)] &
       )
     end do
@@ -55,8 +55,8 @@ contains
 
     do concurrent(i = its:ite, j = jts:jte)
       call mp_simple_sediment( &
-        press(i,:,j), th(i,:,j), temp(i,:,j), rho(i,:,j), qv(i,:,j), qc(i,:,j), qr(i,:,j), qs(i,:,j), rain(i,j), snow(i,j), &
-        dt, dz(i,:,j), kms, kme, kts, kte &
+        press(i,:,j), temp(i,:,j), rho(i,:,j), qv(i,:,j), qc(i,:,j), qr(i,:,j), qs(i,:,j), rain(i,j), snow(i,j), &
+        dt_in, dz(i,:,j), kms, kme, kts, kte, sediment_flag = .true. &
       )
     end do
   end subroutine

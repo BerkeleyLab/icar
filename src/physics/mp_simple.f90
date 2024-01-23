@@ -143,7 +143,7 @@ contains
     !!   Environmental Prediction Research Facility, Technical Paper No. 4-74
     !!
     !!----------------------------------------------------------
-    real function sat_mr(temperature, pressure)
+    pure real function sat_mr(temperature, pressure)
     ! Calculate the saturated mixing ratio at a temperature (K), pressure (Pa)
         implicit none
         real,intent(in) :: temperature,pressure
@@ -195,7 +195,7 @@ contains
     !!  @param dt           time step                [sec.]
     !!
     !!----------------------------------------------------------
-    subroutine cloud_conversion(pressure,temperature,qv,qc,qvsat,dt)
+    pure subroutine cloud_conversion(pressure,temperature,qv,qc,qvsat,dt)
         implicit none
         real,intent(inout)  :: temperature,qv,qc,qvsat
         real,intent(in)     :: dt,pressure
@@ -257,25 +257,25 @@ contains
         ! prevents precision limits from crashing later code
         qc = max(qc,0.)
 
-        if ((temperature > 350).or.(qc > 0.01).or.(qvsat > 1)) then
-            deltat = excess*vapor2temp
-            !$omp critical (print_lock)
-            print*, ""
-            print*, ""
-            print*, "mp_simple ERROR: "
-            if (temperature > 350 ) print*, "Temperature out of bounds", temperature
-            if (qc          > 0.01) print*, "Qc out of bounds", qc
-            if (qvsat       > 1   ) print*, "saturated qv out of bounds", qvsat
-            print*, "iter=",iteration
-            print*, ""
-            print*, "   preqc=",pre_qc,"       preqv=",pre_qv,"        pret=",pre_t
-            print*, "   qc=",qc, "      qv=",qv,"       temperature=",temperature
-            print*, "   pressure=",pressure, "        qvsat=",qvsat
-            print*, "   mrs_pret=",sat_mr(pre_t,pressure),"     mrs_t=",sat_mr(temperature,pressure), "     mrs_delta=",sat_mr(pre_t,pressure)-sat_mr(temperature,pressure)
-            print*, "   excess=",excess, "      vapor2temp=",vapor2temp
-            print*, "   temperature-deltat=",temperature-deltat, "      mrs_(t-dT)=",sat_mr(temperature-deltat,pressure)
-            !$omp end critical (print_lock)
-        endif
+        ! if ((temperature > 350).or.(qc > 0.01).or.(qvsat > 1)) then
+        !     deltat = excess*vapor2temp
+        !     !$omp critical (print_lock)
+        !     print*, ""
+        !     print*, ""
+        !     print*, "mp_simple ERROR: "
+        !     if (temperature > 350 ) print*, "Temperature out of bounds", temperature
+        !     if (qc          > 0.01) print*, "Qc out of bounds", qc
+        !     if (qvsat       > 1   ) print*, "saturated qv out of bounds", qvsat
+        !     print*, "iter=",iteration
+        !     print*, ""
+        !     print*, "   preqc=",pre_qc,"       preqv=",pre_qv,"        pret=",pre_t
+        !     print*, "   qc=",qc, "      qv=",qv,"       temperature=",temperature
+        !     print*, "   pressure=",pressure, "        qvsat=",qvsat
+        !     print*, "   mrs_pret=",sat_mr(pre_t,pressure),"     mrs_t=",sat_mr(temperature,pressure), "     mrs_delta=",sat_mr(pre_t,pressure)-sat_mr(temperature,pressure)
+        !     print*, "   excess=",excess, "      vapor2temp=",vapor2temp
+        !     print*, "   temperature-deltat=",temperature-deltat, "      mrs_(t-dT)=",sat_mr(temperature-deltat,pressure)
+        !     !$omp end critical (print_lock)
+        ! endif
 
     end subroutine
 
@@ -292,7 +292,7 @@ contains
     !!  @param qcmin        minimum cloud content before conversion [kg/kg]
     !!
     !!----------------------------------------------------------
-    subroutine cloud2hydrometeor(qc,q,conversion,qcmin)
+    pure subroutine cloud2hydrometeor(qc,q,conversion,qcmin)
         implicit none
         real,intent(inout) :: qc,q
         real,intent(in) :: conversion, qcmin
@@ -330,7 +330,7 @@ contains
     !! @param change_rate fraction of q1 that can change in a timestep  []
     !!
     !!----------------------------------------------------------
-    subroutine phase_change(pressure,temperature,q1,qmax,q2,Lheat,change_rate)
+    pure subroutine phase_change(pressure,temperature,q1,qmax,q2,Lheat,change_rate)
         implicit none
         real, intent(inout) :: temperature, q1, q2
         real, intent(in)    :: pressure, qmax, change_rate, Lheat
@@ -351,9 +351,9 @@ contains
             if ((q1+SMALL_VALUE)<0) then
                 q1 = 0
             else
-                print*, "phase_change"
-                print*, q1,q2,delta,qmax,change_rate
-                stop
+                !print*, "phase_change"
+                !print*, q1,q2,delta,qmax,change_rate
+                error stop "phase_change"
             endif
         endif
         q2 = q2+delta
@@ -378,7 +378,7 @@ contains
     !!  @param dt           time step                [sec.]
     !!
     !!----------------------------------------------------------
-    subroutine mp_conversions(pressure, temperature, qv, qc, qr, qs, dt)
+    pure subroutine mp_conversions(pressure, temperature, qv, qc, qr, qs, dt)
         implicit none
         real, intent(inout) :: pressure, temperature, qv, qc, qr, qs
         real, intent(in)    :: dt
@@ -434,20 +434,23 @@ contains
     !!  @param  ite 0D top layer to process
     !!
     !!----------------------------------------------------------
-    real function sediment(q, v, rho, dz, kms, kme, kts, kte)
+    pure subroutine sediment(precipitation, q, v, rho, dz, kms, kme, kts, kte)
         implicit none
+        real, intent(inout) :: precipitation
         real,   intent(inout):: q   (kms:kme)
         real,   intent(in)   :: v   (kms:kme)
         real,   intent(in)   :: rho (kms:kme)
         real,   intent(in)   :: dz  (kms:kme)
         integer,intent(in)   :: kms, kme, kts, kte
-        real    :: flux(kms:kme)
+        real    :: flux(kms:kme), precip_flux
         integer :: i
 
         ! calculate the mass of material falling out of the bottom model level
-        sediment = v(kts) * q(kts) * rho(kts) ![m] * [kg/kg] * [kg/m^3] = [kg/m^2]
+        precip_flux = v(kts) * q(kts) * rho(kts) ![m] * [kg/kg] * [kg/m^3] = [kg/m^2]
+        precipitation = precipitation + precip_flux
         ! remove that from the bottom model layer.
-        q(kts) = q(kts) - (sediment / dz(kts) / rho(kts)) ! [kg/m^2] / [m] / [kg/m^3] = [kg/kg]
+        q(kts) = q(kts) - (precip_flux / dz(kts) / rho(kts)) ! [kg/m^2] / [m] / [kg/m^3] = [kg/kg]
+
         do i = kts, min(kte, kme-1)
             flux(i) = v(i+1) * q(i+1) * rho(i+1)
         enddo
@@ -456,7 +459,7 @@ contains
             q(i+1) = q(i+1) - flux(i) / (rho(i+1) * dz(i+1))
         enddo
 
-    end function
+    end subroutine
 
     !>----------------------------------------------------------
     !!  Basic microphysics code for a column of air
@@ -479,7 +482,7 @@ contains
     !!
     !!----------------------------------------------------------
 
-    subroutine mp_simple_sediment(pressure, temperature, rho, qv, qc, qr, qs, rain, snow, dt, dz, kms, kme, kts, kte, sediment_flag)
+    pure subroutine mp_simple_sediment(pressure, temperature, rho, qv, qc, qr, qs, rain, snow, dt, dz, kms, kme, kts, kte, sediment_flag)
         implicit none
         real,   intent(inout)   :: pressure     (kms:kme)
         real,   intent(inout)   :: temperature  (kms:kme)
@@ -513,7 +516,7 @@ contains
             fall_rate = dt * fall_rate / cfl
             ! substepping to satisfy CFL criteria
             do cfl_step = 1, nint(cfl)
-                rain = rain + sediment(qr, fall_rate, rho, dz, kms, kme, kts, kte)
+                call sediment(rain, qr, fall_rate, rho, dz, kms, kme, kts, kte)
                 ! allow any rain that reached an unsaturated layer to evaporate
                 do i = kts, kte
                     L_evap = -1 * (LH_vapor + (373.15 - temperature(i)) * dLHvdt)   ! J/kg
@@ -540,7 +543,8 @@ contains
             fall_rate = dt * fall_rate / cfl
             ! substepping to satisfy CFL criteria
             do cfl_step = 1, nint(cfl)
-                snowfall = sediment(qs, fall_rate, rho, dz, kms, kme, kts, kte)
+                snowfall = 0.
+                call sediment(snowfall, qs, fall_rate, rho, dz, kms, kme, kts, kte)
                 snow = snow + snowfall
                 rain = rain + snowfall
 
@@ -565,7 +569,7 @@ contains
 
     end subroutine mp_simple_sediment
 
-    subroutine mp_simple(pressure, temperature, rho, qv, qc, qr, qs, rain, snow, dt, dz, kms, kme, kts, kte, sediment_flag)
+   pure subroutine mp_simple(pressure, temperature, rho, qv, qc, qr, qs, rain, snow, dt, dz, kms, kme, kts, kte, sediment_flag)
         implicit none
         real,   intent(inout)   :: pressure     (kms:kme)
         real,   intent(inout)   :: temperature  (kms:kme)
@@ -603,7 +607,7 @@ contains
             fall_rate = dt * fall_rate / cfl
             ! substepping to satisfy CFL criteria
             do cfl_step = 1, nint(cfl)
-                rain = rain + sediment(qr, fall_rate, rho, dz, kms, kme, kts, kte)
+                call sediment(rain, qr, fall_rate, rho, dz, kms, kme, kts, kte)
                 ! allow any rain that reached an unsaturated layer to evaporate
                 do i = kts, kte
                     L_evap = -1 * (LH_vapor + (373.15 - temperature(i)) * dLHvdt)   ! J/kg
@@ -630,7 +634,8 @@ contains
             fall_rate = dt * fall_rate / cfl
             ! substepping to satisfy CFL criteria
             do cfl_step = 1, nint(cfl)
-                snowfall = sediment(qs, fall_rate, rho, dz, kms, kme, kts, kte)
+                snowfall = 0.
+                call sediment(snowfall, qs, fall_rate, rho, dz, kms, kme, kts, kte)
                 snow = snow + snowfall
                 rain = rain + snowfall
 
