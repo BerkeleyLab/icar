@@ -745,10 +745,11 @@ contains
         call training_input%save_file('training_input.nc', training_step, domain%model_time)
 
          tmp_domain_potential_temperature_data_3d = domain%potential_temperature%data_3d
-         tmp_domain_water_vapor_data_3d = domain%water_vapor%data_3d
-         tmp_domain_cloud_water_mass_data_3d = domain%cloud_water_mass%data_3d
-         tmp_domain_rain_mass_data_3d = domain%rain_mass%data_3d
-         tmp_domain_snow_mass_data_3d = domain%snow_mass%data_3d
+         tmp_domain_water_vapor_data_3d           = domain%water_vapor%data_3d
+         tmp_domain_cloud_water_mass_data_3d      = domain%cloud_water_mass%data_3d
+         tmp_domain_rain_mass_data_3d             = domain%rain_mass%data_3d
+         tmp_domain_snow_mass_data_3d             = domain%snow_mass%data_3d
+
          allocate(tmp_precipitation(ims:ime,jms:jme), source = 0.)
          allocate(tmp_snowfall(ims:ime,jms:jme), source = 0.)
 
@@ -773,12 +774,6 @@ contains
             kts = kts, kte = kte, sediment_flag = .false.)
 
         call training_output%save_file('training_output.nc', training_step, domain%model_time)
-
-        domain%potential_temperature%data_3d = input_domain_potential_temperature_data_3d
-        domain%water_vapor%data_3d           = input_domain_water_vapor_data_3d
-        domain%cloud_water_mass%data_3d      = input_domain_cloud_water_mass_data_3d
-        domain%rain_mass%data_3d             = input_domain_rain_mass_data_3d
-        domain%snow_mass%data_3d             = input_domain_snow_mass_data_3d
 
         domain%potential_temperature%data_3d = tmp_domain_potential_temperature_data_3d
         domain%water_vapor%data_3d           = tmp_domain_water_vapor_data_3d
