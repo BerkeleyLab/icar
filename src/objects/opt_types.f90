@@ -179,7 +179,7 @@ module options_types
 
         ! these are the variables that need to be written and read from disk as primary output
         integer :: vars_for_output( kMAX_STORAGE_VARS ) = 0
-        logical :: output_training = .true.
+        logical :: output_training = .false.
 
     end type output_options_type
 
