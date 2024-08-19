@@ -1,5 +1,5 @@
 module mp_ml
-  use inference_engine_m, only : inference_engine_t, tensor_t
+  use inference_engine_m, only : inference_engine_t, tensor_t, tensor_map_t
   use sourcery_m, only : string_t, file_t
   use module_mp_simple, only : mp_simple_sediment
   implicit none
@@ -13,7 +13,6 @@ contains
 
   subroutine ml_mp_init(network_file)
     type(string_t), intent(in) :: network_file
-
     network = inference_engine_t(file_t(network_file))
   end subroutine
 
@@ -38,9 +37,13 @@ contains
       )
     end do
 
-    outputs(its:ite, kts:kte, jts:jte) = network%infer(inputs)
+    inputs(its:ite, kts:kte, jts:jte) = network%map_to_input_range(inputs(its:ite, kts:kte, jts:jte))
 
-    do concurrent(i = its:ite, j = jts:jte, k = kts:kte)
+    outputs(its:ite, kts:kte, jts:jte) = network%infer(inputs(its:ite, kts:kte, jts:jte))
+
+    outputs(its:ite, kts:kte, jts:jte) = network%map_from_output_range(outputs(its:ite, kts:kte, jts:jte))
+
+    do concurrent(i = its:ite, k = kts:kte, j = jts:jte)
       associate(output_tensor => outputs(i,k,j)%values())
         th(i,k,j)    = max(0.,    th(i,k,j) + output_tensor(1)*dt_in)
         qv(i,k,j)    = max(0.,    qv(i,k,j) + output_tensor(2)*dt_in)
