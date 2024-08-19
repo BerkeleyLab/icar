@@ -7,7 +7,7 @@ copyright = "2021 National Center for Atmospheric Research"
 
 [dependencies]
 netcdf-interfaces = {git = "https://github.com/LKedward/netcdf-interfaces.git"}
-assert = {git = "https://github.com/sourceryinstitute/assert.git"}
+assert = {git = "https://github.com/sourceryinstitute/assert.git", tag="1.7.0"}
 inference-engine = {git = "https://github.com/berkeleylab/inference-engine.git"}
 
 [dev-dependencies]
