@@ -1,6 +1,6 @@
 module mp_ml
   use inference_engine_m, only : inference_engine_t, tensor_t, tensor_map_t
-  use sourcery_m, only : string_t, file_t
+  use julienne_m, only : string_t, file_t
   use module_mp_simple, only : mp_simple_sediment
   implicit none
 

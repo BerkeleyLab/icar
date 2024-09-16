@@ -28,7 +28,7 @@
 module microphysics
     ! use data_structures
     use icar_constants
-    use sourcery_m, only : string_t
+    use julienne_m, only : string_t
     use mod_wrf_constants
     use module_mp_thompson_aer,     only: mp_gt_driver_aer, thompson_aer_init
     use module_mp_thompson,         only: mp_gt_driver, thompson_init
@@ -741,8 +741,15 @@ contains
             tmp_domain_potential_temperature_data_3d, tmp_domain_water_vapor_data_3d, &
             tmp_domain_cloud_water_mass_data_3d, tmp_domain_rain_mass_data_3d, tmp_domain_snow_mass_data_3d
         real, dimension(:,:), allocatable :: tmp_precipitation, tmp_snowfall
+        integer, parameter :: save_interval = 100
 
-        call training_input%save_file('training_input.nc', training_step, domain%model_time)
+        if (mod(training_step,save_interval)==0) then
+          block
+            type(string_t) file_name
+            file_name = 'training_input-image-' // string_t(this_image()) // '.nc'
+            call training_input%save_file(file_name%string(), training_step/save_interval, domain%model_time)
+          end block
+        end if
 
          tmp_domain_potential_temperature_data_3d = domain%potential_temperature%data_3d
          tmp_domain_water_vapor_data_3d           = domain%water_vapor%data_3d
@@ -773,7 +780,13 @@ contains
             jts = jts, jte = jte,                   &
             kts = kts, kte = kte, sediment_flag = .false.)
 
-        call training_output%save_file('training_output.nc', training_step, domain%model_time)
+        if (mod(training_step,save_interval)==0) then
+          block
+            type(string_t) file_name
+            file_name = 'training_output-image-' // string_t(this_image()) // '.nc'
+            call training_output%save_file(file_name%string(), training_step/save_interval, domain%model_time)
+          end block
+        end if
 
         domain%potential_temperature%data_3d = tmp_domain_potential_temperature_data_3d
         domain%water_vapor%data_3d           = tmp_domain_water_vapor_data_3d
