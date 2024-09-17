@@ -38,7 +38,7 @@
 !+---+-----------------------------------------------------------------+
 !
       MODULE module_mp_thompson
-      use options_types, only: mp_options_type
+	  use options_types, only: mp_options_type
 
 !       USE module_wrf_error
 ! 		USE module_mp_radar
@@ -776,7 +776,8 @@
                               GRAUPELNC, GRAUPELNCV, SR, &
                               ids,ide, jds,jde, kds,kde, &             ! domain dims
                               ims,ime, jms,jme, kms,kme, &             ! memory dims
-                              its,ite, jts,jte, kts,kte)               ! tile dims
+                              its,ite, jts,jte, kts,kte, &             ! tile dims
+                              sediment_F)
 
       implicit none
 
@@ -797,6 +798,9 @@
       REAL, INTENT(IN):: dt_in
 !..Local variables
       INTEGER, INTENT(IN):: itimestep
+      logical, INTENT(IN), optional :: sediment_F
+
+      logical :: sed
       REAL, DIMENSION(kts:kte):: &
                           qv1d, qc1d, qi1d, qr1d, qs1d, qg1d, ni1d, &
                           nr1d, t1d, p1d, dz1d, dBZ
@@ -810,8 +814,14 @@
       INTEGER:: i_start, j_start, i_end, j_end
 
 
+      if (present(sediment_F)) then
+          sed = sediment_F
+      else
+          sed = .True.
+      endif
+
 !$OMP PARALLEL DEFAULT(PRIVATE) FIRSTPRIVATE(ids,ide,jds,jde,kds,kde,ims,ime,jms,jme,&
-!$OMP kms,kme,its,ite,jts,jte,kts,kte,itimestep) &
+!$OMP kms,kme,its,ite,jts,jte,kts,kte,itimestep, sed) &
 !$OMP SHARED(RAINNCV,RAINNC,SNOWNCV,SNOWNC,GRAUPELNCV,GRAUPELNC,SR,th,pii,p,dz,qv,qc,&
 !$OMP qi,qr,qs,qg,ni,nr,dt_in,Nt_c,TNO,rho_g,av_s,bv_s,fv_s,av_g,bv_g,EF_si,Ef_ri)
 ! old w/pcp_xx vars !!$OMP qi,qr,qs,qg,ni,nr,pcp_ra,pcp_sn,pcp_gr,pcp_ic,dt_in)
@@ -898,7 +908,7 @@
          call mp_thompson(qv1d, qc1d, qi1d, qr1d, qs1d, qg1d, ni1d, &
                       nr1d, t1d, p1d, dz1d, &
                       pptrain, pptsnow, pptgraul, pptice, &
-                      kts, kte, dt, i, j)
+                      kts, kte, dt, i, j, sed)
 
 !          pcp_ra(i,j) = pptrain
 !          pcp_sn(i,j) = pptsnow
@@ -1057,7 +1067,7 @@
       subroutine mp_thompson (qv1d, qc1d, qi1d, qr1d, qs1d, qg1d, ni1d, &
                           nr1d, t1d, p1d, dzq, &
                           pptrain, pptsnow, pptgraul, pptice, &
-                         kts, kte, dt, ii, jj)
+                         kts, kte, dt, ii, jj, sed)
 
       implicit none
 
@@ -1069,6 +1079,7 @@
       REAL, DIMENSION(kts:kte), INTENT(IN):: dzq
       REAL, INTENT(INOUT):: pptrain, pptsnow, pptgraul, pptice
       REAL, INTENT(IN):: dt
+      logical, intent(in) :: sed
 
 !..Local variables
       REAL, DIMENSION(kts:kte):: tten, qvten, qcten, qiten, &
@@ -2656,119 +2667,119 @@
 !.. New in v3.0+ is computing separate for rain, ice, snow, and
 !.. graupel species thus making code faster with credit to J. Schmidt.
 !+---+-----------------------------------------------------------------+
+      if (sed) then
+          nstep = NINT(1./onstep(1))
+          do n = 1, nstep
+             do k = kte, kts, -1
+                sed_r(k) = vtrk(k)*rr(k)
+                sed_n(k) = vtnrk(k)*nr(k)
+             enddo
+             k = kte
+             odzq = 1./dzq(k)
+             orho = 1./rho(k)
+             qrten(k) = qrten(k) - sed_r(k)*odzq*onstep(1)*orho
+             nrten(k) = nrten(k) - sed_n(k)*odzq*onstep(1)*orho
+             rr(k) = MAX(R1, rr(k) - sed_r(k)*odzq*DT*onstep(1))
+             nr(k) = MAX(R2, nr(k) - sed_n(k)*odzq*DT*onstep(1))
+             do k = ksed1(1), kts, -1
+                odzq = 1./dzq(k)
+                orho = 1./rho(k)
+                qrten(k) = qrten(k) + (sed_r(k+1)-sed_r(k)) &
+                                                   *odzq*onstep(1)*orho
+                nrten(k) = nrten(k) + (sed_n(k+1)-sed_n(k)) &
+                                                   *odzq*onstep(1)*orho
+                rr(k) = MAX(R1, rr(k) + (sed_r(k+1)-sed_r(k)) &
+                                               *odzq*DT*onstep(1))
+                nr(k) = MAX(R2, nr(k) + (sed_n(k+1)-sed_n(k)) &
+                                               *odzq*DT*onstep(1))
+             enddo
 
-      nstep = NINT(1./onstep(1))
-      do n = 1, nstep
-         do k = kte, kts, -1
-            sed_r(k) = vtrk(k)*rr(k)
-            sed_n(k) = vtnrk(k)*nr(k)
-         enddo
-         k = kte
-         odzq = 1./dzq(k)
-         orho = 1./rho(k)
-         qrten(k) = qrten(k) - sed_r(k)*odzq*onstep(1)*orho
-         nrten(k) = nrten(k) - sed_n(k)*odzq*onstep(1)*orho
-         rr(k) = MAX(R1, rr(k) - sed_r(k)*odzq*DT*onstep(1))
-         nr(k) = MAX(R2, nr(k) - sed_n(k)*odzq*DT*onstep(1))
-         do k = ksed1(1), kts, -1
-            odzq = 1./dzq(k)
-            orho = 1./rho(k)
-            qrten(k) = qrten(k) + (sed_r(k+1)-sed_r(k)) &
-                                               *odzq*onstep(1)*orho
-            nrten(k) = nrten(k) + (sed_n(k+1)-sed_n(k)) &
-                                               *odzq*onstep(1)*orho
-            rr(k) = MAX(R1, rr(k) + (sed_r(k+1)-sed_r(k)) &
-                                           *odzq*DT*onstep(1))
-            nr(k) = MAX(R2, nr(k) + (sed_n(k+1)-sed_n(k)) &
-                                           *odzq*DT*onstep(1))
-         enddo
+             if (rr(kts).gt.R1*10.) &
+             pptrain = pptrain + sed_r(kts)*DT*onstep(1)
+          enddo
 
-         if (rr(kts).gt.R1*10.) &
-         pptrain = pptrain + sed_r(kts)*DT*onstep(1)
-      enddo
+    !+---+-----------------------------------------------------------------+
 
-!+---+-----------------------------------------------------------------+
+          nstep = NINT(1./onstep(2))
+          do n = 1, nstep
+             do k = kte, kts, -1
+                sed_i(k) = vtik(k)*ri(k)
+                sed_n(k) = vtnik(k)*ni(k)
+             enddo
+             k = kte
+             odzq = 1./dzq(k)
+             orho = 1./rho(k)
+             qiten(k) = qiten(k) - sed_i(k)*odzq*onstep(2)*orho
+             niten(k) = niten(k) - sed_n(k)*odzq*onstep(2)*orho
+             ri(k) = MAX(R1, ri(k) - sed_i(k)*odzq*DT*onstep(2))
+             ni(k) = MAX(R2, ni(k) - sed_n(k)*odzq*DT*onstep(2))
+             do k = ksed1(2), kts, -1
+                odzq = 1./dzq(k)
+                orho = 1./rho(k)
+                qiten(k) = qiten(k) + (sed_i(k+1)-sed_i(k)) &
+                                                   *odzq*onstep(2)*orho
+                niten(k) = niten(k) + (sed_n(k+1)-sed_n(k)) &
+                                                   *odzq*onstep(2)*orho
+                ri(k) = MAX(R1, ri(k) + (sed_i(k+1)-sed_i(k)) &
+                                               *odzq*DT*onstep(2))
+                ni(k) = MAX(R2, ni(k) + (sed_n(k+1)-sed_n(k)) &
+                                               *odzq*DT*onstep(2))
+             enddo
 
-      nstep = NINT(1./onstep(2))
-      do n = 1, nstep
-         do k = kte, kts, -1
-            sed_i(k) = vtik(k)*ri(k)
-            sed_n(k) = vtnik(k)*ni(k)
-         enddo
-         k = kte
-         odzq = 1./dzq(k)
-         orho = 1./rho(k)
-         qiten(k) = qiten(k) - sed_i(k)*odzq*onstep(2)*orho
-         niten(k) = niten(k) - sed_n(k)*odzq*onstep(2)*orho
-         ri(k) = MAX(R1, ri(k) - sed_i(k)*odzq*DT*onstep(2))
-         ni(k) = MAX(R2, ni(k) - sed_n(k)*odzq*DT*onstep(2))
-         do k = ksed1(2), kts, -1
-            odzq = 1./dzq(k)
-            orho = 1./rho(k)
-            qiten(k) = qiten(k) + (sed_i(k+1)-sed_i(k)) &
-                                               *odzq*onstep(2)*orho
-            niten(k) = niten(k) + (sed_n(k+1)-sed_n(k)) &
-                                               *odzq*onstep(2)*orho
-            ri(k) = MAX(R1, ri(k) + (sed_i(k+1)-sed_i(k)) &
-                                           *odzq*DT*onstep(2))
-            ni(k) = MAX(R2, ni(k) + (sed_n(k+1)-sed_n(k)) &
-                                           *odzq*DT*onstep(2))
-         enddo
+             if (ri(kts).gt.R1*10.) &
+             pptice = pptice + sed_i(kts)*DT*onstep(2)
+          enddo
 
-         if (ri(kts).gt.R1*10.) &
-         pptice = pptice + sed_i(kts)*DT*onstep(2)
-      enddo
+    !+---+-----------------------------------------------------------------+
 
-!+---+-----------------------------------------------------------------+
+          nstep = NINT(1./onstep(3))
+          do n = 1, nstep
+             do k = kte, kts, -1
+                sed_s(k) = vtsk(k)*rs(k)
+             enddo
+             k = kte
+             odzq = 1./dzq(k)
+             orho = 1./rho(k)
+             qsten(k) = qsten(k) - sed_s(k)*odzq*onstep(3)*orho
+             rs(k) = MAX(R1, rs(k) - sed_s(k)*odzq*DT*onstep(3))
+             do k = ksed1(3), kts, -1
+                odzq = 1./dzq(k)
+                orho = 1./rho(k)
+                qsten(k) = qsten(k) + (sed_s(k+1)-sed_s(k)) &
+                                                   *odzq*onstep(3)*orho
+                rs(k) = MAX(R1, rs(k) + (sed_s(k+1)-sed_s(k)) &
+                                               *odzq*DT*onstep(3))
+             enddo
 
-      nstep = NINT(1./onstep(3))
-      do n = 1, nstep
-         do k = kte, kts, -1
-            sed_s(k) = vtsk(k)*rs(k)
-         enddo
-         k = kte
-         odzq = 1./dzq(k)
-         orho = 1./rho(k)
-         qsten(k) = qsten(k) - sed_s(k)*odzq*onstep(3)*orho
-         rs(k) = MAX(R1, rs(k) - sed_s(k)*odzq*DT*onstep(3))
-         do k = ksed1(3), kts, -1
-            odzq = 1./dzq(k)
-            orho = 1./rho(k)
-            qsten(k) = qsten(k) + (sed_s(k+1)-sed_s(k)) &
-                                               *odzq*onstep(3)*orho
-            rs(k) = MAX(R1, rs(k) + (sed_s(k+1)-sed_s(k)) &
-                                           *odzq*DT*onstep(3))
-         enddo
+             if (rs(kts).gt.R1*10.) &
+             pptsnow = pptsnow + sed_s(kts)*DT*onstep(3)
+          enddo
 
-         if (rs(kts).gt.R1*10.) &
-         pptsnow = pptsnow + sed_s(kts)*DT*onstep(3)
-      enddo
+    !+---+-----------------------------------------------------------------+
 
-!+---+-----------------------------------------------------------------+
+          nstep = NINT(1./onstep(4))
+          do n = 1, nstep
+             do k = kte, kts, -1
+                sed_g(k) = vtgk(k)*rg(k)
+             enddo
+             k = kte
+             odzq = 1./dzq(k)
+             orho = 1./rho(k)
+             qgten(k) = qgten(k) - sed_g(k)*odzq*onstep(4)*orho
+             rg(k) = MAX(R1, rg(k) - sed_g(k)*odzq*DT*onstep(4))
+             do k = ksed1(4), kts, -1
+                odzq = 1./dzq(k)
+                orho = 1./rho(k)
+                qgten(k) = qgten(k) + (sed_g(k+1)-sed_g(k)) &
+                                                   *odzq*onstep(4)*orho
+                rg(k) = MAX(R1, rg(k) + (sed_g(k+1)-sed_g(k)) &
+                                               *odzq*DT*onstep(4))
+             enddo
 
-      nstep = NINT(1./onstep(4))
-      do n = 1, nstep
-         do k = kte, kts, -1
-            sed_g(k) = vtgk(k)*rg(k)
-         enddo
-         k = kte
-         odzq = 1./dzq(k)
-         orho = 1./rho(k)
-         qgten(k) = qgten(k) - sed_g(k)*odzq*onstep(4)*orho
-         rg(k) = MAX(R1, rg(k) - sed_g(k)*odzq*DT*onstep(4))
-         do k = ksed1(4), kts, -1
-            odzq = 1./dzq(k)
-            orho = 1./rho(k)
-            qgten(k) = qgten(k) + (sed_g(k+1)-sed_g(k)) &
-                                               *odzq*onstep(4)*orho
-            rg(k) = MAX(R1, rg(k) + (sed_g(k+1)-sed_g(k)) &
-                                           *odzq*DT*onstep(4))
-         enddo
-
-         if (rg(kts).gt.R1*10.) &
-         pptgraul = pptgraul + sed_g(kts)*DT*onstep(4)
-      enddo
-
+             if (rg(kts).gt.R1*10.) &
+             pptgraul = pptgraul + sed_g(kts)*DT*onstep(4)
+          enddo
+      endif
 !+---+-----------------------------------------------------------------+
 !.. Instantly melt any cloud ice into cloud water if above 0C and
 !.. instantly freeze any cloud water found below HGFR.
