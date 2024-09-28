@@ -462,15 +462,15 @@ contains
         ! run the thompson microphysics
         if (options%physics%microphysics==kMP_THOMPSON) then
             ! call the thompson microphysics
-            call mp_gt_driver(qv = domain%water_vapor%data_3d,                      &
-                              th = domain%potential_temperature%data_3d,            &
-                              qc = domain%cloud_water_mass%data_3d,                 &
-                              qi = domain%cloud_ice_mass%data_3d,                   &
-                              ni = domain%cloud_ice_number%data_3d,                 &
-                              qr = domain%rain_mass%data_3d,                        &
-                              nr = domain%rain_number%data_3d,                      &
-                              qs = domain%snow_mass%data_3d,                        &
-                              qg = domain%graupel_mass%data_3d,                     &
+            call mp_gt_driver(qv = domain%water_vapor%data_3d,                      & ! TODO: save in temporary variable
+                              th = domain%potential_temperature%data_3d,            & ! TODO: save in temporary variable
+                              qc = domain%cloud_water_mass%data_3d,                 & ! TODO: save in temporary variable
+                              qi = domain%cloud_ice_mass%data_3d,                   & ! TODO: save in temporary variable
+                              ni = domain%cloud_ice_number%data_3d,                 & ! TODO: save in temporary variable
+                              qr = domain%rain_mass%data_3d,                        & ! TODO: save in temporary variable
+                              nr = domain%rain_number%data_3d,                      & ! TODO: save in temporary variable
+                              qs = domain%snow_mass%data_3d,                        & ! TODO: save in temporary variable
+                              qg = domain%graupel_mass%data_3d,                     & ! TODO: save in temporary variable
                               pii= domain%exner%data_3d,                            &
                               p =  domain%pressure%data_3d,                         &
                               dz = domain%dz_mass%data_3d,                          &
