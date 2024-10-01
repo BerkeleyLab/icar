@@ -729,7 +729,8 @@ contains
     
     subroutine output_training(domain, options, mp_dt, &
         ims, ime, jms, jme, kms, kme, &
-        its, ite, jts, jte, kts, kte  &
+        its, ite, jts, jte, kts, kte, &
+        ids, ide, jds, jde, kds, kde  &
     )
         implicit none
         type(domain_t), intent(inout) :: domain
@@ -737,10 +738,12 @@ contains
         real,           intent(in)    :: mp_dt
         integer, intent(in) :: ims, ime, jms, jme, kms, kme ! memory dims
         integer, intent(in) :: its, ite, jts, jte, kts, kte ! tile dims
+        integer, intent(in) :: ids, ide, jds, jde, kds, kde ! tile dims
         real, dimension(:,:,:), allocatable :: &
             tmp_domain_potential_temperature_data_3d, tmp_domain_water_vapor_data_3d, &
-            tmp_domain_cloud_water_mass_data_3d, tmp_domain_rain_mass_data_3d, tmp_domain_snow_mass_data_3d
-        real, dimension(:,:), allocatable :: tmp_precipitation, tmp_snowfall
+            tmp_domain_cloud_water_mass_data_3d, tmp_domain_rain_mass_data_3d, tmp_domain_snow_mass_data_3d, &
+            tmp_cloud_ice_mass, tmp_cloud_ice_number, tmp_rain_number, tmp_graupel_mass
+        real, dimension(:,:), allocatable :: tmp_precipitation, tmp_snowfall, tmp_this_precip, tmp_graupel, tmp_SR
         integer, parameter :: save_interval = 100
 
         if (mod(training_step,save_interval)==0) then
@@ -759,7 +762,48 @@ contains
 
          allocate(tmp_precipitation(ims:ime,jms:jme), source = 0.)
          allocate(tmp_snowfall(ims:ime,jms:jme), source = 0.)
+         allocate(tmp_this_precip(ims:ime,jms:jme), source = 0.)
+         allocate(tmp_graupel(ims:ime,jms:jme), source = 0.)
+         allocate(tmp_SR(ims:ime,jms:jme), source = 0.)
 
+        if (options%physics%microphysics==kMP_THOMPSON) then
+            
+            tmp_cloud_ice_mass   = domain%cloud_ice_mass%data_3d
+            tmp_cloud_ice_number = domain%cloud_ice_number%data_3d
+            tmp_rain_number      = domain%rain_number%data_3d
+            tmp_graupel_mass     = domain%graupel_mass%data_3d
+
+            ! call the thompson microphysics
+            call mp_gt_driver(qv = domain%water_vapor%data_3d,                      & 
+                              th = domain%potential_temperature%data_3d,            & 
+                              qc = domain%cloud_water_mass%data_3d,                 & 
+                              qi = domain%cloud_ice_mass%data_3d,                   & 
+                              ni = domain%cloud_ice_number%data_3d,                 & 
+                              qr = domain%rain_mass%data_3d,                        & 
+                              nr = domain%rain_number%data_3d,                      & 
+                              qs = domain%snow_mass%data_3d,                        & 
+                              qg = domain%graupel_mass%data_3d,                     & 
+                              pii= domain%exner%data_3d,                            &
+                              p =  domain%pressure%data_3d,                         &
+                              dz = domain%dz_mass%data_3d,                          &
+                              dt_in = mp_dt,                                           &
+                              itimestep = 1,                                        & ! not used in thompson
+                              RAINNC = tmp_precipitation,    &
+                              RAINNCV = tmp_this_precip,                                & ! not used outside thompson (yet)
+                              SR = tmp_SR,                                              & ! not used outside thompson (yet)
+                              SNOWNC = tmp_snowfall,         &
+                              GRAUPELNC = tmp_graupel,       &
+                              ids = ids, ide = ide,                   & ! domain dims
+                              jds = jds, jde = jde,                   &
+                              kds = kds, kde = kde,                   &
+                              ims = ims, ime = ime,                   & ! memory dims
+                              jms = jms, jme = jme,                   &
+                              kms = kms, kme = kme,                   &
+                              its = its, ite = ite,                   & ! tile dims
+                              jts = jts, jte = jte,                   &
+                              kts = kts, kte = kte, sediment_F=.false.)
+        
+        else if (options%physics%microphysics==kMP_SB04) then
         ! call the simple microphysics routine of SB04
         call mp_simple_driver(domain%pressure%data_3d,                  &
             domain%potential_temperature%data_3d,     &
@@ -780,6 +824,8 @@ contains
             jts = jts, jte = jte,                   &
             kts = kts, kte = kte, sediment_flag = .false.)
 
+        end if
+
         if (mod(training_step,save_interval)==0) then
           block
             type(string_t) file_name
@@ -793,6 +839,13 @@ contains
         domain%cloud_water_mass%data_3d      = tmp_domain_cloud_water_mass_data_3d
         domain%rain_mass%data_3d             = tmp_domain_rain_mass_data_3d
         domain%snow_mass%data_3d             = tmp_domain_snow_mass_data_3d
+
+        if (options%physics%microphysics==kMP_THOMPSON) then
+         domain%cloud_ice_mass%data_3d   = tmp_cloud_ice_mass
+         domain%cloud_ice_number%data_3d = tmp_cloud_ice_number
+         domain%rain_number%data_3d      = tmp_rain_number
+         domain%graupel_mass%data_3d     = tmp_graupel_mass
+        end if
 
     end subroutine
 
@@ -877,6 +930,9 @@ contains
 
             if (present(halo)) then
                 call output_training(domain, options, mp_dt, &
+                ids = ids, ide = ide,                   & ! domain dims
+                jds = jds, jde = jde,                   &
+                kds = kds, kde = kde,                   &
                 ims = ims, ime = ime,                   & ! memory dims
                 jms = jms, jme = jme,                   &
                 kms = kms, kme = kme,                   &
