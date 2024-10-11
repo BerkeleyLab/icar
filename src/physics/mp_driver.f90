@@ -746,6 +746,8 @@ contains
         real, dimension(:,:), allocatable :: tmp_precipitation, tmp_snowfall, tmp_this_precip, tmp_graupel, tmp_SR
         integer, parameter :: save_interval = 100
 
+        training_step = training_step + 1
+
         if (mod(training_step,save_interval)==0) then
           block
             type(string_t) file_name
