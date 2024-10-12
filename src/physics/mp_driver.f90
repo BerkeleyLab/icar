@@ -750,9 +750,9 @@ contains
 
         if (mod(training_step,save_interval)==0) then
           block
-            type(string_t) file_name
-            file_name = 'training_input-image-' // string_t(this_image()) // '.nc'
-            call training_input%save_file(file_name%string(), training_step/save_interval, domain%model_time)
+            character(len=256) file_name
+            write(file_name, '(A,I6.6,"_",".nc")') 'training_input-image-', this_image()
+            call training_input%save_file(trim(file_name), training_step/save_interval, domain%model_time)
           end block
         end if
 
@@ -830,9 +830,9 @@ contains
 
         if (mod(training_step,save_interval)==0) then
           block
-            type(string_t) file_name
-            file_name = 'training_output-image-' // string_t(this_image()) // '.nc'
-            call training_output%save_file(file_name%string(), training_step/save_interval, domain%model_time)
+            character(len=256) file_name
+            write(file_name, '(A,I6.6,"_",".nc")') 'training_output-image-', this_image()
+            call training_output%save_file(trim(file_name), training_step/save_interval, domain%model_time)
           end block
         end if
 
