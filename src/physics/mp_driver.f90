@@ -84,6 +84,8 @@ contains
         type(domain_t), intent(in) :: domain
         integer, allocatable :: variable_list(:)
         
+        options%output_options%output_training = .true.
+
         if (this_image()==1) write(*,*) ""
         if (this_image()==1) write(*,*) "Initializing Microphysics"
         if (options%physics%microphysics    == kMP_THOMPSON) then
@@ -751,8 +753,12 @@ contains
         if (mod(training_step,save_interval)==0) then
           block
             character(len=256) file_name
-            write(file_name, '(A,I6.6,"_",".nc")') 'training_input-image-', this_image()
+            write(file_name, '(A,I6.6,".nc")') 'training_input-image-', this_image()
             call training_input%save_file(trim(file_name), training_step/save_interval, domain%model_time)
+            if (this_image()==1) then
+               print *,"training data dt= ", &
+               trim(domain%model_time%as_string()), mp_dt, training_step/save_interval
+            end if
           end block
         end if
 
@@ -831,7 +837,7 @@ contains
         if (mod(training_step,save_interval)==0) then
           block
             character(len=256) file_name
-            write(file_name, '(A,I6.6,"_",".nc")') 'training_output-image-', this_image()
+            write(file_name, '(A,I6.6,".nc")') 'training_output-image-', this_image()
             call training_output%save_file(trim(file_name), training_step/save_interval, domain%model_time)
           end block
         end if
